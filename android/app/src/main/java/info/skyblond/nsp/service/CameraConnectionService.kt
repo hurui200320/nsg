@@ -78,6 +78,8 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
     private var isAwaitingBond: Boolean = false
     private var classicDevice: BluetoothDevice? = null
     private var classicBondComplete: Boolean = false
+    private var reconnectScanCallback: ScanCallback? = null
+    private var reconnectScanTimeoutJob: kotlinx.coroutines.Job? = null
 
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
@@ -278,8 +280,82 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
             Log.d(TAG, "connectToSavedCamera: ${camera.name} [${camera.address}]")
             pairingMode = PairingMode.RECONNECT
             savedCamera = camera
-            currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
             controllerName = camera.controllerName
+            // The camera changes its BLE (random) address between sessions. Scan for the
+            // current advertisement by name before connecting; if the scan fails or times
+            // out, fall back to the saved address.
+            startReconnectScan(camera)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startReconnectScan(camera: PairedCamera) {
+        val scanner = this.scanner
+        if (scanner == null) {
+            Log.e(TAG, "BluetoothLeScanner is null, cannot start reconnect scan")
+            currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
+            connectCurrentDevice()
+            return
+        }
+        updateState(ConnectionState.Connecting)
+        logEvent("Scanning for saved camera...")
+        reconnectScanTimeoutJob?.cancel()
+        reconnectScanCallback?.let { try { scanner.stopScan(it) } catch (_: Exception) {} }
+
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult?) {
+                result ?: return
+                val name = result.device.name
+                if (name == camera.name) {
+                    Log.d(TAG, "Reconnect scan found current BLE address: ${result.device.address} (saved was ${camera.address})")
+                    reconnectScanTimeoutJob?.cancel()
+                    reconnectScanCallback?.let { try { scanner.stopScan(it) } catch (_: Exception) {} }
+                    reconnectScanCallback = null
+                    // Update the persisted address so next time we can try directly first.
+                    val updated = camera.copy(address = result.device.address)
+                    settingsRepository.saveCamera(updated)
+                    refreshSavedCameras()
+                    savedCamera = updated
+                    currentDevice = result.device
+                    connectCurrentDevice()
+                }
+            }
+
+            override fun onBatchScanResults(results: MutableList<ScanResult>?) {
+                results?.forEach { onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, it) }
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                Log.w(TAG, "Reconnect scan failed: errorCode=$errorCode")
+                reconnectScanCallback = null
+                currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
+                connectCurrentDevice()
+            }
+        }
+        reconnectScanCallback = callback
+        val filter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(CameraBleManager.SERVICE_UUID))
+            .build()
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+        try {
+            scanner.startScan(listOf(filter), settings, callback)
+            reconnectScanTimeoutJob = serviceScope.launch {
+                delay(10_000)
+                if (reconnectScanCallback != null) {
+                    Log.w(TAG, "Reconnect scan timed out; using saved address as fallback")
+                    try { scanner.stopScan(reconnectScanCallback!!) } catch (_: Exception) {}
+                    reconnectScanCallback = null
+                    currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
+                    connectCurrentDevice()
+                }
+            }
+        } catch (e: SecurityException) {
+            updateState(ConnectionState.Error("Missing permission: ${e.message}"))
+        } catch (e: Exception) {
+            Log.w(TAG, "Reconnect scan start failed: ${e.message}", e)
+            currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
             connectCurrentDevice()
         }
     }
@@ -288,6 +364,9 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         serviceScope.launch {
             idWriteTimeoutJob?.cancel()
             bondingTimeoutJob?.cancel()
+            reconnectScanTimeoutJob?.cancel()
+            reconnectScanCallback?.let { try { scanner.stopScan(it) } catch (_: Exception) {} }
+            reconnectScanCallback = null
             stopClassicDiscovery()
             stopScan()
             bleManager?.disconnect()
@@ -384,6 +463,9 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         isAwaitingBond = false
         classicBondComplete = false
         classicDevice = null
+        reconnectScanTimeoutJob?.cancel()
+        reconnectScanCallback?.let { try { scanner.stopScan(it) } catch (_: Exception) {} }
+        reconnectScanCallback = null
         Log.d(TAG, "connectCurrentDevice: ${device.address} (${device.name ?: "no name"}) bondState=${device.bondState}")
         updateState(ConnectionState.Connecting)
         bleManager?.close()

@@ -348,10 +348,13 @@ Flow for **Connect**:
 
 1. Start foreground service.
 2. Load selected saved camera.
-3. Use the saved BLE address to `connectGatt`.
-4. Same as steps 5–10 of the Pair flow (MTU, enable indications/notifications, handshake, ID write).
-5. **Skip the bonding step.** Reconnect assumes the camera is already OS-paired; the bond is stored under the camera's classic Bluetooth address, so the BLE device object may report `BOND_NONE` even though the pairing is valid.
-6. Transition to `Ready`.
+3. The camera's BLE address is a random address that can change between sessions, so start a short BLE scan for the saved camera name/service UUID.
+4. When found, update the persisted BLE address to the current advertisement address and connect via `connectGatt`.
+5. If the scan times out, fall back to the saved address.
+6. Run the handshake using the saved `device` and `nonce`.
+7. Write the controller name to `ID`.
+8. Skip the bonding step (the camera is already OS-paired).
+9. Transition to `Ready`.
 
 Flow for **Send**:
 
@@ -478,7 +481,7 @@ When `disconnect()` is called, remove the notification and stop the service.
 
 - **Bluetooth Classic bonding**: The biggest unknown. The camera exposes a different classic Bluetooth address than its BLE address; the app must discover that classic address and bond it. After writing the ID characteristic the camera may need the BLE GATT to be closed before the system pairing dialog can appear. The app starts classic discovery during the handshake, closes the BLE GATT after the handshake, and bonds the discovered classic device. Manual OS pairing may still be required on some phones/cameras.
 - **MTU / 41-byte GEO write**: If the camera refuses a larger MTU, the GEO write will fail. Mitigation: request MTU 517; if rejected, log it and stop.
-- **Address type / resolvable random addresses**: Saved MAC addresses may not survive camera resets. Reconnect is implemented by saved address for the PoC; scanning for manufacturer data can be added later.
+- **Address type / resolvable random addresses**: Saved BLE MAC addresses may not survive camera resets because the camera uses a random/resolvable BLE address. Reconnect now scans for the current BLE advertisement by name and updates the saved address. If the scan fails, it falls back to the saved address.
 - **OEM-specific BLE/location quirks**: This is why we request `ACCESS_FINE_LOCATION` even though we don’t use real location.
 
 ---
