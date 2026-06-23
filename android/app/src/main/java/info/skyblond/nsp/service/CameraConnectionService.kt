@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
@@ -70,6 +71,13 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
     private var currentStage1: PairingMessage? = null
     private var pairingStep = 0
     private var pairingMode = PairingMode.NEW
+    private var idWriteTimeoutJob: kotlinx.coroutines.Job? = null
+    private var bondingTimeoutJob: kotlinx.coroutines.Job? = null
+    private var discoveryReceiver: BroadcastReceiver? = null
+    private var discoveryRestartJob: kotlinx.coroutines.Job? = null
+    private var isAwaitingBond: Boolean = false
+    private var classicDevice: BluetoothDevice? = null
+    private var classicBondComplete: Boolean = false
 
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
@@ -114,20 +122,58 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
                         @Suppress("DEPRECATION")
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                     }
-                    if (device?.address != currentDevice?.address) return
+                    if (device == null) return
+                    val isRelevant = device.address == currentDevice?.address || device.address == classicDevice?.address
+                    if (!isRelevant) return
                     val bondState = intent.getIntExtra(
                         BluetoothDevice.EXTRA_BOND_STATE,
                         BluetoothDevice.BOND_NONE
                     )
+                    val previousBondState = intent.getIntExtra(
+                        BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
+                        BluetoothDevice.BOND_NONE
+                    )
+                    Log.d(TAG, "Bond state changed for ${device.address}: $previousBondState -> $bondState")
                     when (bondState) {
                         BluetoothDevice.BOND_BONDING -> updateState(ConnectionState.Bonding)
-                        BluetoothDevice.BOND_BONDED -> onBonded()
-                        BluetoothDevice.BOND_NONE -> logEvent("Bonding removed / failed")
+                        BluetoothDevice.BOND_BONDED -> {
+                            bondingTimeoutJob?.cancel()
+                            if (device.address == classicDevice?.address) {
+                                Log.d(TAG, "Classic Bluetooth device bonded; will use it for the BLE connection")
+                                classicBondComplete = true
+                            }
+                            if (isAwaitingBond) {
+                                Log.d(TAG, "Bonded while disconnected; reconnecting to complete handshake")
+                                isAwaitingBond = false
+                                stopClassicDiscovery()
+                                reconnectAfterBonding()
+                            } else if (pairingStep >= 5) {
+                                onBonded()
+                            } else {
+                                Log.d(TAG, "Bonded before handshake completed, waiting for handshake")
+                            }
+                        }
+                        BluetoothDevice.BOND_NONE -> {
+                            Log.w(TAG, "Bonding failed for ${device.address}; waiting for discovery to find camera again")
+                            logEvent("Bonding removed / failed")
+                        }
                     }
                 }
 
                 BluetoothDevice.ACTION_PAIRING_REQUEST -> {
-                    logEvent("Pairing request from camera - accept the OS dialog if shown")
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    }
+                    val isRelevant = device != null && (device.address == currentDevice?.address || device.address == classicDevice?.address)
+                    if (!isRelevant) return
+                    val variant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, 0)
+                    val key = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_KEY, 0)
+                    Log.d(TAG, "Pairing request from ${device?.address}: variant=$variant key=$key")
+                    val passkey = String.format("%06d", key)
+                    logEvent("Pairing request from camera (passkey=$passkey) - confirm in system dialog")
                 }
             }
         }
@@ -142,7 +188,7 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
             addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
         }
-        ContextCompat.registerReceiver(this, bondReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(this, bondReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -219,8 +265,10 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         serviceScope.launch {
             Log.d(TAG, "selectDiscoveredCamera: ${camera.name} [${camera.address}]")
             stopScan()
+            pairingMode = PairingMode.NEW
+            savedCamera = null
             currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
-            controllerName = camera.name.take(12).ifEmpty { DEFAULT_CONTROLLER_NAME }
+            controllerName = DEFAULT_CONTROLLER_NAME
             connectCurrentDevice()
         }
     }
@@ -238,6 +286,9 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
 
     fun disconnect() {
         serviceScope.launch {
+            idWriteTimeoutJob?.cancel()
+            bondingTimeoutJob?.cancel()
+            stopClassicDiscovery()
             stopScan()
             bleManager?.disconnect()
             bleManager?.close()
@@ -302,12 +353,20 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
                 }
                 is BleEvent.Disconnected -> {
                     Log.d(TAG, "onEvent: Disconnected")
-                    updateState(ConnectionState.Error("Camera disconnected"))
+                    if (isAwaitingBond) {
+                        Log.d(TAG, "Disconnected while waiting for classic bond - keeping state")
+                    } else {
+                        updateState(ConnectionState.Error("Camera disconnected"))
+                    }
                 }
                 is BleEvent.Error -> {
                     Log.e(TAG, "onEvent: Error ${event.message}")
-                    logEvent("BLE error: ${event.message}")
-                    updateState(ConnectionState.Error(event.message))
+                    if (isAwaitingBond) {
+                        Log.d(TAG, "Ignoring BLE error while waiting for classic bond: ${event.message}")
+                    } else {
+                        logEvent("BLE error: ${event.message}")
+                        updateState(ConnectionState.Error(event.message))
+                    }
                 }
             }
         }
@@ -318,32 +377,51 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
     // -------------------------------------------------------------------------
 
     private fun connectCurrentDevice() {
-        val device = currentDevice ?: return
+        val device = currentDevice ?: run {
+            Log.w(TAG, "connectCurrentDevice: no current device")
+            return
+        }
+        isAwaitingBond = false
+        classicBondComplete = false
+        classicDevice = null
+        Log.d(TAG, "connectCurrentDevice: ${device.address} (${device.name ?: "no name"}) bondState=${device.bondState}")
         updateState(ConnectionState.Connecting)
         bleManager?.close()
         bleManager = CameraBleManager(this, this).also { it.connect(device) }
     }
 
     private fun beginHandshake() {
+        Log.d(TAG, "beginHandshake: generating stage 1 (mode=$pairingMode)")
         currentStage1 = pairingEngine.createStage1(savedCamera)
         pairingStep = 1
-        currentStage1?.let { bleManager?.writePairMessage(it.encode()) }
+        currentStage1?.let {
+            Log.d(TAG, "beginHandshake: stage 1 timestamp=${it.timestamp.toHexString()} device=${it.device.toHexString()} nonce=${it.nonce.toHexString()}")
+            bleManager?.writePairMessage(it.encode())
+        }
         logEvent("Sent pairing stage 1")
+        // The camera becomes visible to classic Bluetooth discovery while/after the handshake.
+        // Start discovery early so we can initiate createBond() from the phone side as soon as
+        // the camera appears in the system device list.
+        startClassicDiscovery()
     }
 
     private fun handlePairIndication(data: ByteArray) {
+        Log.d(TAG, "handlePairIndication: step=$pairingStep data=${data.toHex()}")
         when (pairingStep) {
             1 -> {
                 val stage2 = PairingMessage.decode(data)
+                Log.d(TAG, "Received stage 2: timestamp=${stage2.timestamp.toHexString()} device=${stage2.device.toHexString()} nonce=${stage2.nonce.toHexString()}")
                 val stage3 = pairingEngine.verifyStage2AndBuildStage3(
                     currentStage1 ?: return,
                     stage2
                 )
                 if (stage3 == null) {
+                    Log.e(TAG, "Salt verification failed - handshake aborted")
                     logEvent("Salt verification failed - handshake aborted")
                     updateState(ConnectionState.Error("Blowfish salt mismatch"))
                     return
                 }
+                Log.d(TAG, "Sending stage 3: device=${stage3.device.toHexString()} nonce=${stage3.nonce.toHexString()}")
                 bleManager?.writePairMessage(stage3.encode())
                 pairingStep = 2
                 logEvent("Sent pairing stage 3")
@@ -351,42 +429,90 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
             2 -> {
                 val stage4 = PairingMessage.decode(data)
                 val serial = pairingEngine.extractSerial(stage4)
+                Log.d(TAG, "Received stage 4: serial='$serial' timestamp=${stage4.timestamp.toHexString()} raw=${data.toHex()}")
                 logEvent("Camera serial: $serial")
                 bleManager?.writePairMessage(pairingEngine.buildStage5().encode())
                 pairingStep = 3
                 logEvent("Sent pairing stage 5")
             }
             else -> {
+                Log.w(TAG, "Unexpected PAIR indication in step $pairingStep")
                 logEvent("Unexpected PAIR indication in step $pairingStep")
             }
         }
     }
 
     private fun handleNot1Notification(data: ByteArray) {
-        if (pairingStep == 3 && data.size >= 2 && data[0] == 0x01.toByte() && data[1] == 0x00.toByte()) {
-            pairingStep = 4
-            writeControllerId()
+        Log.d(TAG, "handleNot1Notification: step=$pairingStep data=${data.toHex()}")
+        val isSuccess = data.size >= 2 && data[0] == 0x01.toByte() && data[1] == 0x00.toByte()
+        if (isSuccess) {
+            Log.d(TAG, "Received success notification 01 00 on NOT1")
+            if (pairingStep < 4) {
+                idWriteTimeoutJob?.cancel()
+                writeControllerId()
+            } else {
+                Log.d(TAG, "Success notification arrived while ID write already in progress")
+            }
         } else {
             logEvent("NOT1: ${data.joinToString(" ") { "%02x".format(it) }}")
         }
     }
 
     private fun writeControllerId() {
-        val nameBytes = controllerName.toByteArray(Charsets.US_ASCII).take(20).toByteArray()
-        bleManager?.writeId(nameBytes)
+        if (pairingStep >= 4) {
+            Log.d(TAG, "writeControllerId: already triggered or done, skipping")
+            return
+        }
+        pairingStep = 4
+        idWriteTimeoutJob?.cancel()
+
+        // SnapBridge and the Z50II reference write a fixed 32-byte ASCII name.
+        val nameBytes = controllerName.toByteArray(Charsets.US_ASCII)
+        val padded = ByteArray(32) { 0x00 }
+        val copyLen = minOf(nameBytes.size, padded.size)
+        nameBytes.copyInto(padded, 0, 0, copyLen)
+        Log.d(TAG, "writeControllerId: $controllerName -> ${padded.toHex()}")
+        bleManager?.writeId(padded)
         logEvent("Writing controller ID: $controllerName")
+
+        // Some cameras (notably Z50II) do not always acknowledge the ID write.
+        // Proceed after a short timeout so we don't hang forever.
+        idWriteTimeoutJob = serviceScope.launch {
+            delay(3_000)
+            Log.w(TAG, "ID write callback did not arrive in 3s, proceeding anyway")
+            if (pairingStep == 4) {
+                pairingStep = 5
+                checkBondedAndFinish()
+            }
+        }
     }
 
     private fun handleWriteDone(uuid: java.util.UUID, status: Int) {
+        Log.d(TAG, "handleWriteDone: uuid=$uuid status=$status step=$pairingStep")
         if (status != android.bluetooth.BluetoothGatt.GATT_SUCCESS) {
+            Log.e(TAG, "Write failed on $uuid: status=$status")
             logEvent("Write failed on $uuid: status=$status")
             return
         }
         when (uuid) {
+            CameraBleManager.PAIR_UUID -> {
+                // Z50II does not always send the post-auth final OK on NOT1.
+                // Give the camera a short moment before writing the ID, matching the reference.
+                if (pairingStep == 3) {
+                    Log.d(TAG, "Stage 5 write acknowledged, scheduling ID write in 200ms")
+                    idWriteTimeoutJob?.cancel()
+                    idWriteTimeoutJob = serviceScope.launch {
+                        delay(200)
+                        writeControllerId()
+                    }
+                }
+            }
             CameraBleManager.ID_UUID -> {
+                idWriteTimeoutJob?.cancel()
                 if (pairingStep == 4) {
+                    Log.d(TAG, "ID write confirmed, checking bond state")
                     pairingStep = 5
-                    triggerBonding()
+                    checkBondedAndFinish()
                 }
             }
             CameraBleManager.GEO_UUID -> {
@@ -397,22 +523,46 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         }
     }
 
-    private fun triggerBonding() {
-        val device = currentDevice ?: return
-        updateState(ConnectionState.Bonding)
-        if (device.bondState == BluetoothDevice.BOND_BONDED) {
+    private fun checkBondedAndFinish() {
+        val bleDevice = currentDevice ?: return
+        val classicBonded = classicBondComplete || classicDevice?.bondState == BluetoothDevice.BOND_BONDED
+        Log.d(TAG, "checkBondedAndFinish: mode=$pairingMode bleBondState=${bleDevice.bondState} classicBonded=$classicBonded")
+        if (bleDevice.bondState == BluetoothDevice.BOND_BONDED || classicBonded) {
             onBonded()
             return
         }
-        try {
-            @Suppress("MissingPermission")
-            device.createBond()
-        } catch (e: SecurityException) {
-            updateState(ConnectionState.Error("Cannot create bond: ${e.message}"))
+        // Reconnect mode assumes the camera was already paired with the OS. The BLE
+        // device object often shows BOND_NONE because the actual bond is stored under the
+        // camera's classic Bluetooth address, so we skip the bonding step for reconnects.
+        if (pairingMode == PairingMode.RECONNECT) {
+            Log.d(TAG, "Reconnect mode: skipping bonding check, proceeding to Ready")
+            onBonded()
+            return
         }
+        // The camera's classic Bluetooth address is usually different from its BLE address.
+        // We start classic discovery during the handshake and disconnect the BLE GATT after
+        // the handshake so the classic pairing/system dialog can proceed. When the classic
+        // device bonds, we reconnect on the BLE address and complete the flow.
+        updateState(ConnectionState.Bonding)
+        isAwaitingBond = true
+        Log.d(TAG, "Not bonded yet; disconnecting BLE GATT to allow classic pairing")
+        bleManager?.disconnect()
+        bondingTimeoutJob?.cancel()
+        bondingTimeoutJob = serviceScope.launch {
+            delay(60_000)
+            Log.w(TAG, "Bonding did not complete within 60s, proceeding anyway")
+            isAwaitingBond = false
+            stopClassicDiscovery()
+            onBonded()
+        }
+        startClassicDiscovery()
     }
 
     private fun onBonded() {
+        bondingTimeoutJob?.cancel()
+        stopClassicDiscovery()
+        isAwaitingBond = false
+        Log.d(TAG, "onBonded: mode=$pairingMode")
         if (pairingMode == PairingMode.NEW && currentDevice != null && currentStage1 != null) {
             val camera = PairedCamera(
                 name = currentDevice?.name ?: "Nikon",
@@ -424,10 +574,128 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
             )
             settingsRepository.saveCamera(camera)
             refreshSavedCameras()
+            Log.d(TAG, "Saved paired camera: ${camera.name} [${camera.address}]")
         }
         pairingStep = 6
         updateState(ConnectionState.Ready)
         logEvent("Camera ready")
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun reconnectAfterBonding() {
+        val device = currentDevice ?: run {
+            Log.w(TAG, "reconnectAfterBonding: no current device")
+            return
+        }
+        val stage1 = currentStage1 ?: run {
+            Log.w(TAG, "reconnectAfterBonding: no stage 1 data")
+            return
+        }
+        Log.d(TAG, "reconnectAfterBonding: ${device.address} using saved stage 1 data")
+        pairingMode = PairingMode.RECONNECT
+        savedCamera = PairedCamera(
+            name = device.name ?: "Nikon",
+            address = device.address,
+            addressType = device.type,
+            device = stage1.device,
+            nonce = stage1.nonce,
+            controllerName = controllerName
+        )
+        settingsRepository.saveCamera(savedCamera!!)
+        refreshSavedCameras()
+        connectCurrentDevice()
+        classicBondComplete = true
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startClassicDiscovery() {
+        val adapter = bluetoothAdapter
+        if (adapter == null) {
+            Log.e(TAG, "BluetoothAdapter is null, cannot start classic discovery")
+            return
+        }
+        if (adapter.isDiscovering) {
+            Log.d(TAG, "Classic discovery already running")
+            return
+        }
+        // Clean up any previous receiver.
+        stopClassicDiscovery()
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                        Log.d(TAG, "Classic discovery started")
+                    }
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                        Log.d(TAG, "Classic discovery finished")
+                        if (isAwaitingBond || state.value == ConnectionState.Bonding) {
+                            Log.d(TAG, "Discovery finished while still awaiting bond; restarting in 1s")
+                            discoveryRestartJob?.cancel()
+                            discoveryRestartJob = serviceScope.launch {
+                                delay(1_000)
+                                startClassicDiscovery()
+                            }
+                        }
+                    }
+                    BluetoothDevice.ACTION_FOUND -> {
+                        val found = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                        }
+                        val foundName = intent.getStringExtra(BluetoothDevice.EXTRA_NAME)
+                        Log.d(TAG, "Classic discovery found: ${found?.address} name=$foundName")
+                        if (found == null) return
+                        val target = currentDevice ?: return
+                        // Match by address or name. The camera often advertises a different
+                        // classic Bluetooth address than its BLE address, so we rely on the
+                        // user-visible name.
+                        if (found.address == target.address || foundName == target.name) {
+                            Log.d(TAG, "Target camera found via classic discovery, creating bond")
+                            classicDevice = found
+                            stopClassicDiscovery()
+                            @Suppress("MissingPermission")
+                            val created = found.createBond()
+                            Log.d(TAG, "createBond() from discovery returned $created")
+                        }
+                    }
+                }
+            }
+        }
+        discoveryReceiver = receiver
+        val filter = IntentFilter().apply {
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            addAction(BluetoothDevice.ACTION_FOUND)
+        }
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        val started = adapter.startDiscovery()
+        Log.d(TAG, "startDiscovery() returned $started")
+        if (started) {
+            logEvent("Searching for camera via Bluetooth discovery...")
+        } else {
+            Log.w(TAG, "startDiscovery() returned false, will retry in 2s")
+            discoveryRestartJob?.cancel()
+            discoveryRestartJob = serviceScope.launch {
+                delay(2_000)
+                startClassicDiscovery()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun stopClassicDiscovery() {
+        discoveryRestartJob?.cancel()
+        discoveryReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: IllegalArgumentException) {
+                // already unregistered
+            }
+            discoveryReceiver = null
+        }
+        bluetoothAdapter?.takeIf { it.isDiscovering }?.cancelDiscovery()
     }
 
     private fun handleScanResult(result: ScanResult) {
@@ -583,3 +851,9 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         private const val DEFAULT_CONTROLLER_NAME = "nsg-poc"
     }
 }
+
+private fun ByteArray.toHex(): String =
+    joinToString(" ") { "%02x".format(it) }
+
+private fun Long.toHexString(): String =
+    "0x%016x".format(this)

@@ -278,6 +278,7 @@ Important implementation notes:
 - Use `BluetoothGattDescriptor.ENABLE_INDICATION_VALUE` for `PAIR`.
 - Use `BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE` for `NOT1`.
 - Write `PAIR` messages with `WRITE_TYPE_DEFAULT` (with response).
+- The `ID` characteristic is written as a fixed 32-byte ASCII name (padded with zeros), matching SnapBridge behavior.
 - The 41-byte `GEO` write relies on the MTU negotiation; if MTU is still 23, the write may fail and will need manual chunking (not implemented in this first pass).
 
 ---
@@ -327,24 +328,30 @@ Flow for **Pair**:
 1. Start foreground service with a notification.
 2. Start BLE scan filtered by the primary service UUID.
 3. Show discovered cameras in the UI.
-4. On user selection: stop scan, connect, discover services, request MTU.
+4. On user selection: stop scan, connect GATT, discover services, request MTU.
 5. Enable `PAIR` indications and `NOT1` notifications.
 6. Generate stage 1, write to `PAIR`.
 7. Receive stage 2, verify salt, generate stage 3, write to `PAIR`.
 8. Receive stage 4 (serial), write stage 5 to `PAIR`.
-9. Receive `01 00` on `NOT1`.
-10. Write controller name to `ID`.
-11. Trigger Bluetooth Classic bonding (`createBond()` if needed) and wait for `BOND_BONDED`.
-12. Save camera to `SettingsRepository`.
-13. Transition to `Ready`.
+9. On some cameras (e.g. Coolpix B600) the camera sends a final `01 00` on `NOT1` after stage 5. On the Z50II this final OK is absent, so the app proceeds as soon as the stage 5 write is acknowledged.
+10. Write controller name to `ID` as a fixed 32-byte ASCII field (unused bytes zeroed), matching SnapBridge / Z50II reference behavior.
+10. When the BLE handshake begins, start classic Bluetooth discovery. The camera typically becomes visible to classic discovery only after the BLE handshake finishes.
+11. After writing the controller name to `ID`, close the BLE GATT connection. This frees the camera for the classic Bluetooth pairing/system dialog, which does not reliably appear while the BLE connection is held.
+12. When classic discovery finds the camera (by its name; the classic Bluetooth address is usually different from the BLE address), store that classic `BluetoothDevice` and call `createBond()` on it.
+13. Listen for `ACTION_BOND_STATE_CHANGED` and wait for `BOND_BONDED` on either the BLE device or the discovered classic device (with a timeout fallback). If the system shows a pairing dialog, the user must accept it; the app will log the resulting bond state.
+14. Listen for `ACTION_PAIRING_REQUEST` and log the pairing passkey so the user can confirm it in the system dialog. Auto-accepting via `setPairingConfirmation` is not possible on modern Android without `BLUETOOTH_PRIVILEGED`.
+15. Once `BOND_BONDED` arrives while the BLE GATT is closed, save the camera and reconnect using the persisted stage-1 data, then run the handshake again to reach `Ready`.
+16. Save camera to `SettingsRepository`.
+17. Transition to `Ready`.
 
 Flow for **Connect**:
 
 1. Start foreground service.
 2. Load selected saved camera.
 3. Use the saved BLE address to `connectGatt`.
-4. Same as steps 5–11 of the Pair flow, but stage 1 uses the saved `device` and `nonce` instead of generating new ones.
-5. Transition to `Ready`.
+4. Same as steps 5–10 of the Pair flow (MTU, enable indications/notifications, handshake, ID write).
+5. **Skip the bonding step.** Reconnect assumes the camera is already OS-paired; the bond is stored under the camera's classic Bluetooth address, so the BLE device object may report `BOND_NONE` even though the pairing is valid.
+6. Transition to `Ready`.
 
 Flow for **Send**:
 
@@ -469,7 +476,7 @@ When `disconnect()` is called, remove the notification and stop the service.
 
 ## 15. Known Risks
 
-- **Bluetooth Classic bonding**: The biggest unknown. After writing the ID characteristic, the camera may switch to BR/EDR. The app will attempt `createBond()` and listen for bond events, but manual OS pairing may be required.
+- **Bluetooth Classic bonding**: The biggest unknown. The camera exposes a different classic Bluetooth address than its BLE address; the app must discover that classic address and bond it. After writing the ID characteristic the camera may need the BLE GATT to be closed before the system pairing dialog can appear. The app starts classic discovery during the handshake, closes the BLE GATT after the handshake, and bonds the discovered classic device. Manual OS pairing may still be required on some phones/cameras.
 - **MTU / 41-byte GEO write**: If the camera refuses a larger MTU, the GEO write will fail. Mitigation: request MTU 517; if rejected, log it and stop.
 - **Address type / resolvable random addresses**: Saved MAC addresses may not survive camera resets. Reconnect is implemented by saved address for the PoC; scanning for manufacturer data can be added later.
 - **OEM-specific BLE/location quirks**: This is why we request `ACCESS_FINE_LOCATION` even though we don’t use real location.

@@ -62,12 +62,15 @@ class CameraBleManager(
         }
         val pair = service.getCharacteristic(PAIR_UUID)
         val not1 = service.getCharacteristic(NOT1_UUID)
+        val id = service.getCharacteristic(ID_UUID)
+        val geo = service.getCharacteristic(GEO_UUID)
         if (pair == null || not1 == null) {
             emitError("Missing PAIR or NOT1 characteristic")
             return
         }
         pairCharacteristic = pair
         not1Characteristic = not1
+        Log.d(TAG, "PAIR properties=${pair.properties} NOT1 properties=${not1.properties} ID properties=${id?.properties} GEO properties=${geo?.properties}")
         subscriptionStep = 1
         enableIndication(pair)
     }
