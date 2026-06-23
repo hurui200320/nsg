@@ -414,6 +414,7 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
                     updateState(ConnectionState.Pairing)
                     beginHandshake()
                 }
+
                 is BleEvent.MtuChanged -> {
                     Log.d(TAG, "onEvent: MtuChanged mtu=${event.mtu}")
                     logEvent("MTU changed to ${event.mtu}")
@@ -513,9 +514,18 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
                 val serial = pairingEngine.extractSerial(stage4)
                 Log.d(TAG, "Received stage 4: serial='$serial' timestamp=${stage4.timestamp.toHexString()} raw=${data.toHex()}")
                 logEvent("Camera serial: $serial")
-                bleManager?.writePairMessage(pairingEngine.buildStage5().encode())
+                // SnapBridge/smart-device handshake does not send stage 5; the camera sends the
+                // final 01 00 success notification on NOT1 after stage 4. Wait briefly for it;
+                // if it does not arrive, write the controller ID anyway.
                 pairingStep = 3
-                logEvent("Sent pairing stage 5")
+                idWriteTimeoutJob?.cancel()
+                idWriteTimeoutJob = serviceScope.launch {
+                    delay(3_000)
+                    if (pairingStep != 3) return@launch
+                    Log.d(TAG, "No NOT1 success after stage 4, writing controller ID anyway")
+                    writeControllerId()
+                }
+                Log.d(TAG, "Waiting for final OK on NOT1 before writing ID")
             }
             else -> {
                 Log.w(TAG, "Unexpected PAIR indication in step $pairingStep")
@@ -529,11 +539,20 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         val isSuccess = data.size >= 2 && data[0] == 0x01.toByte() && data[1] == 0x00.toByte()
         if (isSuccess) {
             Log.d(TAG, "Received success notification 01 00 on NOT1")
-            if (pairingStep < 4) {
-                idWriteTimeoutJob?.cancel()
-                writeControllerId()
-            } else {
-                Log.d(TAG, "Success notification arrived while ID write already in progress")
+            when (pairingStep) {
+                3 -> {
+                    idWriteTimeoutJob?.cancel()
+                    writeControllerId()
+                }
+                4 -> {
+                    idWriteTimeoutJob?.cancel()
+                    Log.d(TAG, "Final OK received while waiting for ID write; proceeding")
+                    pairingStep = 5
+                    checkBondedAndFinish()
+                }
+                else -> {
+                    Log.d(TAG, "Success notification ignored in step $pairingStep")
+                }
             }
         } else {
             logEvent("NOT1: ${data.joinToString(" ") { "%02x".format(it) }}")
@@ -577,18 +596,6 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
             return
         }
         when (uuid) {
-            CameraBleManager.PAIR_UUID -> {
-                // Z50II does not always send the post-auth final OK on NOT1.
-                // Give the camera a short moment before writing the ID, matching the reference.
-                if (pairingStep == 3) {
-                    Log.d(TAG, "Stage 5 write acknowledged, scheduling ID write in 200ms")
-                    idWriteTimeoutJob?.cancel()
-                    idWriteTimeoutJob = serviceScope.launch {
-                        delay(200)
-                        writeControllerId()
-                    }
-                }
-            }
             CameraBleManager.ID_UUID -> {
                 idWriteTimeoutJob?.cancel()
                 if (pairingStep == 4) {

@@ -4,7 +4,7 @@ import info.skyblond.nsp.data.PairedCamera
 import java.security.SecureRandom
 
 /**
- * Drives the 5-stage Nikon smart-device pairing handshake.
+ * Drives the 4-stage Nikon smart-device pairing handshake.
  *
  * Pair mode generates fresh [device] and [nonce]; reconnect mode reuses the values
  * stored in a [PairedCamera]. The timestamp is always freshly generated.
@@ -50,13 +50,6 @@ class NikonPairingEngine(
             device = Integer.reverseBytes(r0).toLong() and 0xFFFFFFFFL,
             nonce = Integer.reverseBytes(r1).toLong() and 0xFFFFFFFFL
         )
-    }
-
-    /**
-     * Build stage 5 (all zeros except the stage counter).
-     */
-    fun buildStage5(): PairingMessage {
-        return PairingMessage(stage = 0x05, timestamp = 0L, device = 0L, nonce = 0L)
     }
 
     /**

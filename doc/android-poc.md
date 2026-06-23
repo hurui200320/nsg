@@ -45,14 +45,14 @@ The service owns the single `BluetoothGatt` instance and the pairing state machi
 3. The user selects a discovered camera from the list.
 4. **Connect BLE GATT**, discover services, negotiate MTU 517.
 5. Enable **indications** on `PAIR` and **notifications** on `NOT1`.
-6. Run the **5-stage Blowfish handshake**:
+6. Run the **4-stage Blowfish handshake**:
    - Stage 1: random timestamp + `device` (LSB `0x01`) + random `nonce`.
    - Stage 2: receive camera challenge, find matching salt.
    - Stage 3: send Blowfish response.
    - Stage 4: receive camera serial number.
-   - Stage 5: send all-zero final message.
 7. **Write controller name** to the `ID` characteristic as a fixed 32-byte ASCII field, zero-padded.
-8. **Disconnect the BLE GATT** so the camera can switch to Bluetooth Classic bonding mode.
+8. **Wait for the final `01 00` success notification on `NOT1`.** Some cameras send it before the `ID` write; others send it after.
+9. **Disconnect the BLE GATT** so the camera can switch to Bluetooth Classic bonding mode.
 9. **Start Bluetooth Classic discovery** and wait for the camera to appear.
 10. When the camera is found by name, call `createBond()` on the discovered **classic** `BluetoothDevice`.
 11. The user confirms the numeric passkey in the system dialog.
@@ -74,10 +74,13 @@ The service owns the single `BluetoothGatt` instance and the pairing state machi
 1. Load the saved `PairedCamera`.
 2. **Scan for the camera's current BLE address.** The camera uses a random BLE address that changes between sessions, so the saved address is only a last-known fallback.
 3. When the camera is found by name + service UUID, update the saved address and connect.
-4. Run the handshake with the saved `device`/`nonce`.
-5. Write the controller name to `ID`.
-6. **Skip bonding.** Reconnect assumes the camera is already OS-paired; forcing bonding again can drop the connection.
-7. Transition to `Ready`.
+4. Run the 4-stage handshake with the saved `device`/`nonce`.
+5. **After receiving stage 4 (camera serial), wait briefly for a `01 00` success notification on `NOT1`.**
+   - If the notification arrives, write the controller name to `ID`.
+   - If no notification arrives after a few seconds, write the controller name to `ID` anyway; some cameras (e.g. Z8) do not send the final OK until after the `ID` write.
+6. Write the controller name to `ID`.
+7. **Skip classic bonding.** The classic bond is already established from the initial Pair flow; forcing it again can drop the connection.
+8. Transition to `Ready`.
 
 ### Persistence
 
@@ -109,7 +112,8 @@ The service owns the single `BluetoothGatt` instance and the pairing state machi
 | BLE GATT holds the connection during bonding | Disconnect the GATT after the `ID` write before expecting the system pairing dialog. |
 | Pairing dialog must be manually confirmed | Log the passkey and rely on the user; auto-accept is blocked. |
 | BLE address changes after camera restart | Reconnect scans for the current advertisement by name and updates the saved address. |
-| BLE device object shows `BOND_NONE` even when paired | The OS bond is on the classic address; for reconnects, skip the bond check and proceed to `Ready`. |
+| BLE device object shows `BOND_NONE` even when paired | The OS bond is on the classic address; for reconnects on the Z50 II, skip the bond check and proceed to `Ready`. |
+| Stage 5 write fails on Z8 reconnect | The smart-device handshake does **not** include a stage 5; after stage 4, wait for the `01 00` notification on `NOT1` and then write the controller ID. If the notification does not arrive, write the ID anyway. |
 
 ---
 

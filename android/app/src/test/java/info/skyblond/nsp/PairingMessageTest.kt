@@ -23,14 +23,4 @@ class PairingMessageTest {
         assertEquals(original.nonce, decoded.nonce)
     }
 
-    @Test
-    fun stage5Encoding() {
-        val stage5 = PairingMessage(stage = 0x05, timestamp = 0L, device = 0L, nonce = 0L)
-        val encoded = stage5.encode()
-        assertEquals(17, encoded.size)
-        assertEquals(0x05.toByte(), encoded[0])
-        encoded.copyOfRange(1, 17).forEach { byte ->
-            assertEquals(0x00.toByte(), byte)
-        }
-    }
 }

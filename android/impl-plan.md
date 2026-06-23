@@ -241,10 +241,6 @@ Stage 3:
 - `device = reverseBytes(r0)`, `nonce = reverseBytes(r1)`, `timestamp = stage1.timestamp`, `stage = 0x03`.
 - This makes the little-endian wire bytes of `device`/`nonce` carry the big-endian representation of `r0`/`r1`, matching the furble reference.
 
-Stage 5:
-
-- All zeros except stage = `0x05`.
-
 ---
 
 ## 9. `CameraBleManager`
@@ -332,8 +328,8 @@ Flow for **Pair**:
 5. Enable `PAIR` indications and `NOT1` notifications.
 6. Generate stage 1, write to `PAIR`.
 7. Receive stage 2, verify salt, generate stage 3, write to `PAIR`.
-8. Receive stage 4 (serial), write stage 5 to `PAIR`.
-9. On some cameras (e.g. Coolpix B600) the camera sends a final `01 00` on `NOT1` after stage 5. On the Z50II this final OK is absent, so the app proceeds as soon as the stage 5 write is acknowledged.
+8. Receive stage 4 (serial); do **not** send stage 5. Wait for the final `01 00` on `NOT1`; if it does not arrive, write the controller ID anyway.
+9. Write controller name to `ID` as a fixed 32-byte ASCII field (unused bytes zeroed), matching SnapBridge / Z50II reference behavior.
 10. Write controller name to `ID` as a fixed 32-byte ASCII field (unused bytes zeroed), matching SnapBridge / Z50II reference behavior.
 10. When the BLE handshake begins, start classic Bluetooth discovery. The camera typically becomes visible to classic discovery only after the BLE handshake finishes.
 11. After writing the controller name to `ID`, close the BLE GATT connection. This frees the camera for the classic Bluetooth pairing/system dialog, which does not reliably appear while the BLE connection is held.
