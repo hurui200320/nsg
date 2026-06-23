@@ -2,7 +2,8 @@
 
 A standalone reference for implementing a GPS/time-sync provider for Nikon Z cameras using the Bluetooth Low Energy “smart device” mode (the same mode used by Nikon SnapBridge).  This document does **not** cover the ML-L7 remote-shutter mode.
 
-> This is a reverse-engineered protocol.  It is known to work for the BLE-layer discovery, pairing handshake, and GPS payload format; the step that follows the ID write may require Bluetooth Classic bonding and is not fully implemented here.
+> This is a reverse-engineered protocol. It is known to work for the BLE-layer discovery, pairing handshake, Bluetooth Classic bonding step, and GPS payload format on the Nikon Z50 II.
+
 
 ---
 
@@ -20,9 +21,11 @@ The camera must be placed in **“Connect to smart device” → pairing mode**.
 1. Scan for a Nikon camera advertising the smart-device service UUID.
 2. Connect, discover the service, subscribe to the PAIR indications and the success notification.
 3. Perform the 5-stage Blowfish-based pairing handshake.
-4. Wait for the `01 00` success notification.
+4. Wait for the `01 00` success notification (some cameras omit this; proceed when the stage-5 write is acknowledged).
 5. Write the controller’s friendly name to the `ID` characteristic.
-6. Send the GPS payload on the `GEO` characteristic whenever a fresh fix is available.
+6. **Pair the camera over Bluetooth Classic.** The camera exposes a different classic Bluetooth address than its BLE address, and it only becomes discoverable after the BLE handshake completes. The phone must close its BLE GATT connection and then discover/bond the classic address.
+7. Reconnect to the camera over BLE (the address may be a new random address on each session).
+8. Send the GPS payload on the `GEO` characteristic whenever a fresh fix is available.
 
 ---
 
@@ -72,6 +75,9 @@ After a successful pairing, the camera advertises **manufacturer data** when it 
 Total length: **7 bytes**.
 
 To reconnect, scan for the same service UUID plus manufacturer data whose `companyID` is `0x0399` and whose `device` field matches the value negotiated during pairing.
+
+> **Note:** The camera uses a **random BLE address** that can change between power cycles. The saved BLE address from the initial pairing may no longer be valid after a restart. If the reconnect by saved address fails, scan for the current advertisement (by service UUID, manufacturer data, or camera name) and connect to the address in the latest advertisement.
+
 
 ### 3.3 Controller identity
 
@@ -255,7 +261,29 @@ stage3.stage     = 0x03;
 
 ---
 
-## 6. Time Synchronization Payload (`TIME` characteristic)
+## 5.5 Bluetooth Classic Bonding
+
+After the `ID` characteristic has been written, the camera switches from BLE pairing/discovery mode to **Bluetooth Classic (BR/EDR) bonding mode**. The `GEO` characteristic will not accept writes until this bond is established.
+
+### Key observations
+
+- The camera advertises a **different classic Bluetooth address** than its BLE address. The BLE address is a random/resolvable address, while the classic address is a public BD-ADDR.
+- The classic address only becomes visible to `BluetoothAdapter.startDiscovery()` **after** the BLE handshake and `ID` write complete.
+- The phone must **close its BLE GATT connection** before the classic pairing/system dialog appears reliably.
+- Pairing uses a numeric passkey shown on the camera screen; the user must confirm the same passkey on the phone.
+
+### Bonding flow
+
+1. Complete the BLE handshake and write the controller name to `ID`.
+2. Disconnect the BLE GATT.
+3. Start Bluetooth Classic discovery (`BluetoothAdapter.startDiscovery()`).
+4. When the camera is found by name, call `createBond()` on the discovered classic `BluetoothDevice`.
+5. Accept the system pairing dialog (or confirm the numeric passkey).
+6. Wait for `BOND_BONDED` on the classic device.
+7. Reconnect to the camera over BLE. The handshake can be re-run with the saved `device`/`nonce` if needed.
+
+Once the classic bond exists, the camera will allow the `GEO` characteristic to be written.
+
 
 The `TIME` characteristic (`0x2006`) payload is **10 bytes**.
 
@@ -402,8 +430,8 @@ When a camera has been paired once, you do not need to repeat the handshake ever
 
 ```c
 struct nikon_persisted_t {
-    char      name[64];     // camera name shown to the user
-    uint64_t  address;      // BLE MAC address
+    char      name[64];     // camera name shown to the user (stable identifier)
+    uint64_t  address;      // last-known BLE MAC address (may change between sessions)
     uint8_t   address_type; // BLE address type (public/random)
     uint32_t  device;       // the 4-byte device id from the handshake
     uint32_t  nonce;        // the 4-byte nonce from the handshake
@@ -412,13 +440,13 @@ struct nikon_persisted_t {
 
 On reconnect:
 
-1. Start scanning for the primary service UUID.
-2. Look for advertisements that include manufacturer data with:
+1. The camera may be advertising with a new BLE address, so start scanning for the primary service UUID (or for the camera name).
+2. Prefer advertisements that include manufacturer data with:
    * `companyID == 0x0399` (little-endian)
    * `device == persisted.device` (little-endian)
    * trailing byte `0x00`
-3. Connect to the address in that advertisement.
-4. The saved `device`/`nonce` can be reused for the handshake, but a new random timestamp should be generated for the new session.
+3. Connect to the address in the current advertisement.
+4. If the camera is already OS-paired, the saved `device`/`nonce` can be reused for the handshake with a new random timestamp; otherwise run the full pairing/bonding flow again.
 
 ---
 
@@ -426,7 +454,8 @@ On reconnect:
 
 | Topic | Status |
 |-------|--------|
-| **Bluetooth Classic bonding** | After writing the controller name to the `ID` characteristic, the camera appears to switch from BLE to **Bluetooth Classic (BR/EDR)** to establish a secure bond.  BLE-only stacks cannot complete this step, and the reference implementation stops here.  A full implementation on Android or another platform with BR/EDR support may need to initiate the OS pairing/bonding flow at this point. |
+| **Bluetooth Classic bonding** | Required after the `ID` write. The camera uses a separate classic Bluetooth address; the phone must discover and bond that address. See section 5.5. |
+| **Random BLE address** | The camera's BLE address can change between power cycles. Saved addresses should be treated as a last-known hint; reconnect is more reliable when scanning for the current advertisement. |
 | **`TIME` characteristic** | Documented and present in the service, but **not observed to be required** for GPS-only operation.  The GPS payload already contains a full timestamp. |
 | **`NOT2` and `GEO` constants** | `NOT2` (`0x200A`) and a constant value `00 01` named `GEO` are declared but unused in the known flow.  They may be used for an explicit camera-to-app “send GPS now” request, but this is unverified. |
 | **Update frequency** | The protocol does not enforce a rate.  Send a `GEO` write whenever a fresh GPS fix is available (e.g., once per second). |
