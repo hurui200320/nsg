@@ -159,7 +159,7 @@ data class DiscoveredCamera(
 
 ## 7. Persistence — `SettingsRepository`
 
-Store the list of paired cameras as a `Set<String>` in `SharedPreferences`. Each entry is a JSON object built with the built-in `org.json.JSONObject`.
+The camera name is the stable identifier; the BLE address is random and changes between sessions, so `SettingsRepository` keys entries by `name` and keeps the last known address only as a fallback.
 
 API:
 

@@ -4,6 +4,8 @@ import org.json.JSONObject
 
 /**
  * A previously paired Nikon camera. [device] and [nonce] are stored as unsigned 32-bit values.
+ * [address] is the last-known BLE address; because the camera uses a random BLE address that
+ * can change between sessions, the app scans for the camera by [name] when reconnecting.
  */
 data class PairedCamera(
     val name: String,

@@ -19,14 +19,16 @@ class SettingsRepository(context: Context) {
 
     fun saveCamera(camera: PairedCamera) {
         val current = loadSavedCameras().toMutableList()
-        current.removeAll { it.address == camera.address }
+        // The camera name is the stable identifier; the BLE address is random and changes
+        // between sessions, so replace any existing entry with the same name.
+        current.removeAll { it.name == camera.name }
         current.add(camera)
         store(current)
     }
 
     fun removeCamera(camera: PairedCamera) {
         val current = loadSavedCameras().toMutableList()
-        current.removeAll { it.address == camera.address }
+        current.removeAll { it.name == camera.name }
         store(current)
     }
 
