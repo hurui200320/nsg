@@ -9,6 +9,7 @@ import android.app.Service
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
@@ -85,14 +86,19 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
             result ?: return
+            logScanResult(result, "ScanResult")
             handleScanResult(result)
         }
 
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-            results?.forEach { handleScanResult(it) }
+            results?.forEach {
+                logScanResult(it, "BatchScanResult")
+                handleScanResult(it)
+            }
         }
 
         override fun onScanFailed(errorCode: Int) {
+            Log.w(TAG, "Scan failed: errorCode=$errorCode")
             logEvent("Scan failed: errorCode=$errorCode")
             updateState(ConnectionState.Error("Scan failed: $errorCode"))
         }
@@ -173,6 +179,7 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
             _discoveredCameras.value = emptyList()
             updateState(ConnectionState.Scanning)
             try {
+                Log.d(TAG, "Starting BLE scan with Nikon service filter")
                 val filter = ScanFilter.Builder()
                     .setServiceUuid(ParcelUuid(CameraBleManager.SERVICE_UUID))
                     .build()
@@ -180,9 +187,9 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
                     .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .build()
                 scanner.startScan(listOf(filter), settings, scanCallback)
-                // Stop scan automatically after 10 seconds.
+                // Stop scan automatically after 15 seconds.
                 serviceScope.launch {
-                    delay(10_000)
+                    delay(15_000)
                     if (state.value is ConnectionState.Scanning) {
                         stopScan()
                         logEvent("Scan timed out")
@@ -413,21 +420,75 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
     }
 
     private fun handleScanResult(result: ScanResult) {
-        val saved = savedCameras.value
-        val isNew = saved.none { it.address == result.device.address }
-        // For pairing mode, prefer cameras with no manufacturer data (new cameras advertising
-        // for pairing). For robustness we still include all matches and let the user decide.
-        val hasManData = result.scanRecord?.manufacturerSpecificData != null
-        if (pairingMode == PairingMode.NEW && hasManData) {
-            // Skip reconnecting cameras during a pair scan.
+        val record = result.scanRecord
+        val name = result.device.name ?: "<no name>"
+        val address = result.device.address ?: "<no address>"
+        val serviceUuids = record?.serviceUuids?.map { it.uuid.toString() } ?: emptyList()
+        val hasNikonService = record?.serviceUuids?.any { it.uuid == CameraBleManager.SERVICE_UUID } == true
+
+        Log.d(
+            TAG,
+            "[BLE SCAN] name=$name address=$address rssi=${result.rssi} " +
+                "services=$serviceUuids " +
+                "manufacturer=[${formatManufacturerData(record)}] " +
+                "isConnectable=${result.isConnectable}"
+        )
+
+        if (hasNikonService) {
+            Log.d(TAG, "[BLE SCAN] Nikon service UUID found on $address")
+        }
+
+        // Only add Nikon cameras to the UI list.
+        if (!hasNikonService) {
             return
         }
+
+        val saved = savedCameras.value
+        val isNew = saved.none { it.address == result.device.address }
+        val hasManData = (record?.manufacturerSpecificData?.size() ?: 0) > 0
+
+        if (pairingMode == PairingMode.NEW && hasManData) {
+            Log.w(
+                TAG,
+                "[BLE SCAN] Nikon camera $address has non-empty manufacturer data (likely already " +
+                    "bonded to another phone). Skipping for pair scan."
+            )
+            return
+        }
+
         val discovered = DiscoveredCamera(result, isNew)
         val current = _discoveredCameras.value.toMutableList()
         if (current.none { it.address == discovered.address }) {
             current.add(discovered)
             _discoveredCameras.value = current
+            Log.d(TAG, "[BLE SCAN] Added ${discovered.name} (${discovered.address}) to UI list")
         }
+    }
+
+    private fun logScanResult(result: ScanResult, source: String) {
+        val record = result.scanRecord
+        val name = result.device.name ?: "<no name>"
+        val address = result.device.address ?: "<no address>"
+        val serviceUuids = record?.serviceUuids?.map { it.uuid.toString() } ?: emptyList()
+        Log.v(
+            TAG,
+            "[$source] name=$name address=$address rssi=${result.rssi} " +
+                "services=$serviceUuids manufacturer=[${formatManufacturerData(record)}]"
+        )
+    }
+
+    private fun formatManufacturerData(record: android.bluetooth.le.ScanRecord?): String {
+        val data = record?.manufacturerSpecificData ?: return ""
+        if (data.size() == 0) return "none"
+        val sb = StringBuilder()
+        for (i in 0 until data.size()) {
+            val key = data.keyAt(i)
+            val bytes = data.get(key) ?: continue
+            sb.append("company=0x%04X ".format(key))
+            sb.append(bytes.joinToString(" ") { "%02x".format(it) })
+            if (i < data.size() - 1) sb.append("; ")
+        }
+        return sb.toString()
     }
 
     private fun refreshSavedCameras() {
