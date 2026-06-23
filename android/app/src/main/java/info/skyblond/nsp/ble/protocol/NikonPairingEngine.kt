@@ -35,20 +35,20 @@ class NikonPairingEngine(
     ): PairingMessage? {
         val salt = findSalt(stage1, stage2) ?: return null
 
-        val (ourHi, ourLo) = timestampHalvesBe(stage1.timestamp)
-        val (camHi, camLo) = timestampHalvesBe(stage2.timestamp)
+        val (ourLo, ourHi) = timestampHalvesBe(stage1.timestamp)
+        val (camLo, camHi) = timestampHalvesBe(stage2.timestamp)
 
         val blocks = intArrayOf(
             SALTS[salt][0], SALTS[salt][1],
-            ourHi, ourLo,
-            camHi, camLo
+            ourLo, ourHi,
+            camLo, camHi
         )
         val (r0, r1) = hasher.hash(blocks)
         return PairingMessage(
             stage = 0x03,
             timestamp = stage1.timestamp,
-            device = r0.toLong() and 0xFFFFFFFFL,
-            nonce = r1.toLong() and 0xFFFFFFFFL
+            device = Integer.reverseBytes(r0).toLong() and 0xFFFFFFFFL,
+            nonce = Integer.reverseBytes(r1).toLong() and 0xFFFFFFFFL
         )
     }
 
@@ -79,8 +79,8 @@ class NikonPairingEngine(
     }
 
     private fun findSalt(stage1: PairingMessage, stage2: PairingMessage): Int? {
-        val (camHi, camLo) = timestampHalvesBe(stage2.timestamp)
-        val (ourHi, ourLo) = timestampHalvesBe(stage1.timestamp)
+        val (camLo, camHi) = timestampHalvesBe(stage2.timestamp)
+        val (ourLo, ourHi) = timestampHalvesBe(stage1.timestamp)
         val camDevice = (stage2.device and 0xFFFFFFFFL).toInt()
         val camNonce = (stage2.nonce and 0xFFFFFFFFL).toInt()
         val camDeviceBe = Integer.reverseBytes(camDevice)
@@ -89,8 +89,8 @@ class NikonPairingEngine(
         for (i in SALTS.indices) {
             val blocks = intArrayOf(
                 SALTS[i][0], SALTS[i][1],
-                camHi, camLo,
-                ourHi, ourLo
+                camLo, camHi,
+                ourLo, ourHi
             )
             val (h0, h1) = hasher.hash(blocks)
             if (h0 == camDeviceBe && h1 == camNonceBe) {
@@ -103,7 +103,7 @@ class NikonPairingEngine(
     private fun timestampHalvesBe(timestamp: Long): Pair<Int, Int> {
         val lo = (timestamp and 0xFFFFFFFFL).toInt()
         val hi = ((timestamp ushr 32) and 0xFFFFFFFFL).toInt()
-        return Integer.reverseBytes(hi) to Integer.reverseBytes(lo)
+        return Integer.reverseBytes(lo) to Integer.reverseBytes(hi)
     }
 
     companion object {

@@ -227,15 +227,19 @@ Stage 1:
 
 Stage 2 verification:
 
-- Convert timestamp halves from little-endian to big-endian using `Integer.reverseBytes()`.
+- Split each timestamp into low 32 bits and high 32 bits.
+- Convert each half from little-endian to big-endian using `Integer.reverseBytes()`.
+- Hash input order for each salt: `[salt0, salt1, camLo, camHi, ourLo, ourHi]` (low half first, matching the furble reference).
 - Try each of the 8 salts.
 - Match: `h0 == reverseBytes(stage2.device)` and `h1 == reverseBytes(stage2.nonce)`.
 
 Stage 3:
 
 - Use the same salt but swap the timestamp order (our ts first, then camera ts).
+- Hash input order: `[salt0, salt1, ourLo, ourHi, camLo, camHi]`.
 - Compute `hash(...)` → `(r0, r1)`.
-- `device = r0`, `nonce = r1`, `timestamp = stage1.timestamp`, `stage = 0x03`.
+- `device = reverseBytes(r0)`, `nonce = reverseBytes(r1)`, `timestamp = stage1.timestamp`, `stage = 0x03`.
+- This makes the little-endian wire bytes of `device`/`nonce` carry the big-endian representation of `r0`/`r1`, matching the furble reference.
 
 Stage 5:
 

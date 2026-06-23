@@ -217,6 +217,7 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
 
     fun selectDiscoveredCamera(camera: DiscoveredCamera) {
         serviceScope.launch {
+            Log.d(TAG, "selectDiscoveredCamera: ${camera.name} [${camera.address}]")
             stopScan()
             currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
             controllerName = camera.name.take(12).ifEmpty { DEFAULT_CONTROLLER_NAME }
@@ -226,6 +227,7 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
 
     fun connectToSavedCamera(camera: PairedCamera) {
         serviceScope.launch {
+            Log.d(TAG, "connectToSavedCamera: ${camera.name} [${camera.address}]")
             pairingMode = PairingMode.RECONNECT
             savedCamera = camera
             currentDevice = bluetoothAdapter.getRemoteDevice(camera.address)
@@ -270,31 +272,40 @@ class CameraConnectionService : Service(), CameraBleManager.BleListener {
         serviceScope.launch {
             when (event) {
                 is BleEvent.Connected -> {
+                    Log.d(TAG, "onEvent: Connected")
                     updateState(ConnectionState.Discovering)
                 }
                 is BleEvent.ServicesDiscovered -> {
+                    Log.d(TAG, "onEvent: ServicesDiscovered")
                     bleManager?.prepare()
                 }
                 is BleEvent.SubscriptionsEnabled -> {
+                    Log.d(TAG, "onEvent: SubscriptionsEnabled")
                     updateState(ConnectionState.Pairing)
                     beginHandshake()
                 }
                 is BleEvent.MtuChanged -> {
+                    Log.d(TAG, "onEvent: MtuChanged mtu=${event.mtu}")
                     logEvent("MTU changed to ${event.mtu}")
                 }
                 is BleEvent.PairIndication -> {
+                    Log.d(TAG, "onEvent: PairIndication ${event.data.size} bytes")
                     handlePairIndication(event.data)
                 }
                 is BleEvent.Not1Notification -> {
+                    Log.d(TAG, "onEvent: Not1Notification ${event.data.size} bytes")
                     handleNot1Notification(event.data)
                 }
                 is BleEvent.WriteDone -> {
+                    Log.d(TAG, "onEvent: WriteDone uuid=${event.uuid} status=${event.status}")
                     handleWriteDone(event.uuid, event.status)
                 }
                 is BleEvent.Disconnected -> {
+                    Log.d(TAG, "onEvent: Disconnected")
                     updateState(ConnectionState.Error("Camera disconnected"))
                 }
                 is BleEvent.Error -> {
+                    Log.e(TAG, "onEvent: Error ${event.message}")
                     logEvent("BLE error: ${event.message}")
                     updateState(ConnectionState.Error(event.message))
                 }

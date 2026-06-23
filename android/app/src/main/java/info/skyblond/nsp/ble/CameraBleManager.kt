@@ -8,7 +8,10 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.util.Log
 import java.util.UUID
+
+private const val TAG = "CameraBleManager"
 
 @SuppressLint("MissingPermission")
 class CameraBleManager(
@@ -21,26 +24,33 @@ class CameraBleManager(
     }
 
     private var gatt: BluetoothGatt? = null
-    private var pendingDescriptorWrites = 0
+    private var pairCharacteristic: BluetoothGattCharacteristic? = null
+    private var not1Characteristic: BluetoothGattCharacteristic? = null
+    private var subscriptionStep = 0
 
     fun connect(device: BluetoothDevice) {
+        Log.d(TAG, "Connecting to ${device.address} (${device.name ?: "no name"})")
         gatt = device.connectGatt(context, false, this, BluetoothDevice.TRANSPORT_LE)
     }
 
     fun disconnect() {
+        Log.d(TAG, "Disconnecting")
         gatt?.disconnect()
     }
 
     fun close() {
+        Log.d(TAG, "Closing GATT")
         gatt?.close()
         gatt = null
     }
 
     /**
      * Must be called after [BleEvent.ServicesDiscovered] to enable PAIR indications
-     * and NOT1 notifications.
+     * and NOT1 notifications. The two descriptor writes are serialized because Android
+     * GATT does not reliably support concurrent descriptor writes.
      */
     fun prepare() {
+        Log.d(TAG, "Preparing: enabling PAIR indications and NOT1 notifications")
         val gatt = this.gatt ?: run {
             emitError("Cannot prepare: gatt is null")
             return
@@ -56,24 +66,29 @@ class CameraBleManager(
             emitError("Missing PAIR or NOT1 characteristic")
             return
         }
-        pendingDescriptorWrites = 2
+        pairCharacteristic = pair
+        not1Characteristic = not1
+        subscriptionStep = 1
         enableIndication(pair)
-        enableNotification(not1)
     }
 
     fun writePairMessage(bytes: ByteArray) {
+        Log.d(TAG, "Writing PAIR message (${bytes.size} bytes)")
         writeCharacteristic(PAIR_UUID, bytes)
     }
 
     fun writeId(nameBytes: ByteArray) {
+        Log.d(TAG, "Writing ID: ${nameBytes.toString(Charsets.US_ASCII)}")
         writeCharacteristic(ID_UUID, nameBytes)
     }
 
     fun writeGeo(bytes: ByteArray) {
+        Log.d(TAG, "Writing GEO payload (${bytes.size} bytes)")
         writeCharacteristic(GEO_UUID, bytes)
     }
 
     override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+        Log.d(TAG, "onConnectionStateChange status=$status newState=$newState")
         if (status != BluetoothGatt.GATT_SUCCESS) {
             emitError("Connection state change error: status=$status")
         }
@@ -89,6 +104,7 @@ class CameraBleManager(
     }
 
     override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+        Log.d(TAG, "onMtuChanged mtu=$mtu status=$status")
         if (status == BluetoothGatt.GATT_SUCCESS) {
             listener.onEvent(BleEvent.MtuChanged(mtu))
         } else {
@@ -98,6 +114,7 @@ class CameraBleManager(
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+        Log.d(TAG, "onServicesDiscovered status=$status")
         if (status == BluetoothGatt.GATT_SUCCESS) {
             listener.onEvent(BleEvent.ServicesDiscovered)
         } else {
@@ -110,13 +127,24 @@ class CameraBleManager(
         descriptor: BluetoothGattDescriptor,
         status: Int
     ) {
+        Log.d(TAG, "onDescriptorWrite descriptor=${descriptor.uuid} status=$status step=$subscriptionStep")
         if (status != BluetoothGatt.GATT_SUCCESS) {
             emitError("Descriptor write failed: status=$status")
             return
         }
-        pendingDescriptorWrites--
-        if (pendingDescriptorWrites <= 0) {
-            listener.onEvent(BleEvent.SubscriptionsEnabled)
+        when (subscriptionStep) {
+            1 -> {
+                subscriptionStep = 2
+                not1Characteristic?.let { enableNotification(it) }
+                    ?: emitError("Cannot enable NOT1: characteristic missing")
+            }
+            2 -> {
+                subscriptionStep = 0
+                listener.onEvent(BleEvent.SubscriptionsEnabled)
+            }
+            else -> {
+                Log.d(TAG, "onDescriptorWrite ignored, step=$subscriptionStep")
+            }
         }
     }
 
@@ -125,6 +153,7 @@ class CameraBleManager(
         characteristic: BluetoothGattCharacteristic,
         value: ByteArray
     ) {
+        Log.d(TAG, "onCharacteristicChanged (API33) ${characteristic.uuid} value=${value.size} bytes")
         handleCharacteristicChanged(characteristic.uuid, value)
     }
 
@@ -134,6 +163,7 @@ class CameraBleManager(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic
     ) {
+        Log.d(TAG, "onCharacteristicChanged ${characteristic.uuid}")
         handleCharacteristicChanged(characteristic.uuid, characteristic.value)
     }
 
@@ -149,11 +179,13 @@ class CameraBleManager(
         characteristic: BluetoothGattCharacteristic,
         status: Int
     ) {
+        Log.d(TAG, "onCharacteristicWrite ${characteristic.uuid} status=$status")
         listener.onEvent(BleEvent.WriteDone(characteristic.uuid, status))
     }
 
     private fun enableIndication(characteristic: BluetoothGattCharacteristic) {
         val gatt = this.gatt ?: return
+        Log.d(TAG, "Enabling indications on ${characteristic.uuid}")
         gatt.setCharacteristicNotification(characteristic, true)
         val descriptor = characteristic.getDescriptor(CCCD_UUID)
         if (descriptor != null) {
@@ -163,6 +195,7 @@ class CameraBleManager(
 
     private fun enableNotification(characteristic: BluetoothGattCharacteristic) {
         val gatt = this.gatt ?: return
+        Log.d(TAG, "Enabling notifications on ${characteristic.uuid}")
         gatt.setCharacteristicNotification(characteristic, true)
         val descriptor = characteristic.getDescriptor(CCCD_UUID)
         if (descriptor != null) {
@@ -175,6 +208,7 @@ class CameraBleManager(
             emitError("Cannot write $uuid: gatt is null")
             return
         }
+        Log.d(TAG, "writeCharacteristic $uuid (${data.size} bytes)")
         val service = gatt.getService(SERVICE_UUID)
         if (service == null) {
             emitError("Cannot write $uuid: service not found")
