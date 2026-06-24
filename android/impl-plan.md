@@ -208,7 +208,7 @@ class BlowfishHasher {
 
 ### `NikonPairingEngine`
 
-Encodes/decodes the 17-byte pairing messages and drives stages 1/3/5.
+Encodes/decodes the 17-byte pairing messages and drives stages 1 and 3.
 
 Message layout (little-endian on the wire):
 
@@ -328,9 +328,8 @@ Flow for **Pair**:
 5. Enable `PAIR` indications and `NOT1` notifications.
 6. Generate stage 1, write to `PAIR`.
 7. Receive stage 2, verify salt, generate stage 3, write to `PAIR`.
-8. Receive stage 4 (serial); do **not** send stage 5. Wait for the final `01 00` on `NOT1`; if it does not arrive, write the controller ID anyway.
-9. Write controller name to `ID` as a fixed 32-byte ASCII field (unused bytes zeroed), matching SnapBridge / Z50II reference behavior.
-10. Write controller name to `ID` as a fixed 32-byte ASCII field (unused bytes zeroed), matching SnapBridge / Z50II reference behavior.
+8. Receive stage 4 (serial); do **not** send stage 5. Wait for the final `01 00` on `NOT1`.
+9. Write controller name to `ID` as a fixed 32-byte ASCII field (unused bytes zeroed). If the final `01 00` has not arrived after a short timeout, write the ID anyway; some cameras only send the final OK after the ID write (or not at all).
 10. When the BLE handshake begins, start classic Bluetooth discovery. The camera typically becomes visible to classic discovery only after the BLE handshake finishes.
 11. After writing the controller name to `ID`, close the BLE GATT connection. This frees the camera for the classic Bluetooth pairing/system dialog, which does not reliably appear while the BLE connection is held.
 12. When classic discovery finds the camera (by its name; the classic Bluetooth address is usually different from the BLE address), store that classic `BluetoothDevice` and call `createBond()` on it.
@@ -348,7 +347,7 @@ Flow for **Connect**:
 4. When found, update the persisted BLE address to the current advertisement address and connect via `connectGatt`.
 5. If the scan times out, fall back to the saved address.
 6. Run the handshake using the saved `device` and `nonce`.
-7. Write the controller name to `ID`.
+7. After stage 4, wait for the final `01 00` on `NOT1`; if it does not arrive within a few seconds, write the controller name to `ID` anyway. Then write the controller name to `ID`.
 8. Skip the bonding step (the camera is already OS-paired).
 9. Transition to `Ready`.
 

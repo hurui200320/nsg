@@ -14,4 +14,6 @@ So for me, and other Chinese users, SnapBridge is the only way to feed GPS into 
 
 This project steals the reverse engineer result from [gkoh/furble](https://github.com/gkoh/furble). Initially I thought I have to go through the SnapBridge APK and capture the bluetooth package, but thankfully the community has already done that.
 
+The Android PoC has been verified to work with both the **Nikon Z50 II** and **Nikon Z8** over Bluetooth smart-device mode.
+
 To first proof things works, I build an Android APP for testing. Once finished and verified things works, I'll buy a M5StackS3 and built a dedicated hardware for it, because again, my samsung phone doesn't have a big battery.

@@ -20,8 +20,8 @@ The camera must be placed in **“Connect to smart device” → pairing mode**.
 
 1. Scan for a Nikon camera advertising the smart-device service UUID.
 2. Connect, discover the service, subscribe to the PAIR indications and the success notification.
-3. Perform the 5-stage Blowfish-based pairing handshake.
-4. Wait for the `01 00` success notification (some cameras omit this; proceed when the stage-5 write is acknowledged).
+3. Perform the 4-stage Blowfish-based pairing handshake.
+4. Wait for the `01 00` success notification on `NOT1` (some cameras send it before the `ID` write, others after; it is safe to proceed with the `ID` write if it does not arrive).
 5. Write the controller’s friendly name to the `ID` characteristic.
 6. **Pair the camera over Bluetooth Classic.** The camera exposes a different classic Bluetooth address than its BLE address, and it only becomes discoverable after the BLE handshake completes. The phone must close its BLE GATT connection and then discover/bond the classic address.
 7. Reconnect to the camera over BLE (the address may be a new random address on each session).
@@ -125,7 +125,7 @@ For stage 1, generate a random 64-bit timestamp and a random 32-bit `nonce`.  Th
 ### 4.4 Notifications
 
 * Subscribe to **indications** on `PAIR` (`0x2000`).  Each received indication is parsed as a 17-byte pairing message and drives the stage machine.
-* Subscribe to **notifications** on `NOT1` (`0x2008`).  The only expected payload is `01 00`, which signals success after stage 5.
+* Subscribe to **notifications** on `NOT1` (`0x2008`).  The expected payload is `01 00`, which signals success after stage 4 (or in response to the `ID` write on some cameras).
 
 ---
 
@@ -459,7 +459,7 @@ On reconnect:
 | **Update frequency** | The protocol does not enforce a rate.  Send a `GEO` write whenever a fresh GPS fix is available (e.g., once per second). |
 | **Remote vs smart mode** | If the camera exposes `REMOTE_PAIR` (`0x2087`), that is the ML-L7 remote mode, which does not support GPS.  The camera should **not** expose that characteristic when in smart-device mode. |
 | **Focus / shutter** | Not covered by this document. |
-| **Tested hardware** | The GPS payload and coordinate conversion have been verified against a Nikon Z6 III.  The pairing handshake itself is implemented only up to the ID-write/Classic-bonding boundary. |
+| **Tested hardware** | The full flow (pairing, classic bonding, reconnect, and GPS/time payload) has been verified on a **Nikon Z50 II** and a **Nikon Z8**.  The GPS payload and coordinate conversion were originally cross-checked against a Nikon Z6 III. |
 | **Timezone semantics** | The exact meaning of `dst_offset`, `tz_offset_hours`, and `tz_offset_minutes` in the `TIME` payload is not known; they are preserved here for completeness. |
 
 ---

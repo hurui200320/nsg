@@ -50,21 +50,21 @@ The service owns the single `BluetoothGatt` instance and the pairing state machi
    - Stage 2: receive camera challenge, find matching salt.
    - Stage 3: send Blowfish response.
    - Stage 4: receive camera serial number.
-7. **Write controller name** to the `ID` characteristic as a fixed 32-byte ASCII field, zero-padded.
-8. **Wait for the final `01 00` success notification on `NOT1`.** Some cameras send it before the `ID` write; others send it after.
+7. **Wait for the final `01 00` success notification on `NOT1`.** Some cameras send it before the `ID` write; others send it after (or not at all).
+8. **Write controller name** to the `ID` characteristic as a fixed 32-byte ASCII field, zero-padded. If the final OK does not arrive, write the ID after a short timeout anyway.
 9. **Disconnect the BLE GATT** so the camera can switch to Bluetooth Classic bonding mode.
-9. **Start Bluetooth Classic discovery** and wait for the camera to appear.
-10. When the camera is found by name, call `createBond()` on the discovered **classic** `BluetoothDevice`.
-11. The user confirms the numeric passkey in the system dialog.
-12. On `BOND_BONDED`, save the camera and **reconnect over BLE**.
-13. Run the handshake again with the saved `device`/`nonce` and transition to `Ready`.
+10. **Start Bluetooth Classic discovery** and wait for the camera to appear.
+11. When the camera is found by name, call `createBond()` on the discovered **classic** `BluetoothDevice`.
+12. The user confirms the numeric passkey in the system dialog.
+13. On `BOND_BONDED`, save the camera and **reconnect over BLE**.
+14. Run the handshake again with the saved `device`/`nonce` and transition to `Ready`.
 
 ### Important Android notes
 
 - **Classic discovery must start during the handshake**, not after. The camera becomes visible to classic discovery only while/after the BLE handshake runs, but the 12-second discovery window may expire before the camera appears. The app restarts discovery automatically when it finishes.
 - **Bond the classic address, not the BLE address.** The camera exposes a different classic BD-ADDR than its BLE random address. Bonding the BLE address fails; the bond that matters is on the classic address.
 - **Auto-accept is not possible.** `BluetoothDevice.setPairingConfirmation()` requires `BLUETOOTH_PRIVILEGED`, which is only available to system apps. The app logs the passkey and relies on the user to confirm the dialog.
-- **Z50II does not send the final `01 00` on `NOT1`.** The app proceeds as soon as the stage-5 write is acknowledged.
+- **Z50II and Z8 both complete the handshake after stage 4.** The app does not send a stage 5; it waits for the final `01 00` on `NOT1` and then writes the ID. Some cameras send the final OK before the ID write, others after it (or not at all), so the app also writes the ID after a short timeout if no notification arrives.
 - **ID write does not always produce a callback.** The app waits for the callback but falls back after 3 seconds.
 
 ---
@@ -77,10 +77,9 @@ The service owns the single `BluetoothGatt` instance and the pairing state machi
 4. Run the 4-stage handshake with the saved `device`/`nonce`.
 5. **After receiving stage 4 (camera serial), wait briefly for a `01 00` success notification on `NOT1`.**
    - If the notification arrives, write the controller name to `ID`.
-   - If no notification arrives after a few seconds, write the controller name to `ID` anyway; some cameras (e.g. Z8) do not send the final OK until after the `ID` write.
-6. Write the controller name to `ID`.
-7. **Skip classic bonding.** The classic bond is already established from the initial Pair flow; forcing it again can drop the connection.
-8. Transition to `Ready`.
+   - If no notification arrives after a few seconds, write the controller name to `ID` anyway.
+6. **Skip classic bonding.** The classic bond is already established from the initial Pair flow; forcing it again can drop the connection.
+7. Transition to `Ready`.
 
 ### Persistence
 
