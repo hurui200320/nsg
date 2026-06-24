@@ -1,0 +1,18 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Suppress noisy D-Bus transport logs -->
+    <logger name="org.freedesktop.dbus" level="INFO"/>
+    <logger name="com.github.hypfvieh.dbus" level="INFO"/>
+
+    <!-- blessed-bluez logs useful BLE events at INFO/DEBUG -->
+    <logger name="com.welie.blessed" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
