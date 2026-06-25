@@ -1,7 +1,8 @@
 #include "PairingMessage.h"
 
-PairingMessage::PairingMessage(uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce)
-    : stage(stage), timestamp(timestamp), device(device), nonce(nonce) {
+PairingMessage::PairingMessage(
+    uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce
+) : stage(stage), timestamp(timestamp), device(device), nonce(nonce) {
 }
 
 void PairingMessage::encode(uint8_t *buffer) const {

@@ -59,6 +59,7 @@ Loop:
 + Process GPS output, save GPS location and fix, update RTC
 + Scan for pending device, do handshake for each one of them
 + For each connected device, check timer and send GPS payload (every minute or 30s?)
++ If got 0x80 or other error from camera, disconnect
 
 Structure:
 + SavedCamera (camera name, device, nonce)
@@ -80,6 +81,5 @@ The device has two modes:
 
 ### Open tasks
 
-- Port the Blowfish handshake and GPS payload construction from the Kotlin PoC.
 - Implement the pairing and reconnect state machines.
 - Test the first end-to-end connection with a Nikon Z camera.
