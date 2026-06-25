@@ -102,6 +102,7 @@
 #define BLOWFISH_H
 
 #include <limits.h>
+#include <stddef.h>
 
 #if UINT_MAX < 4294967295
 #define BFISH_U32 unsigned long
