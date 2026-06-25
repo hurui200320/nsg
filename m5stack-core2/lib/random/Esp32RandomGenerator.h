@@ -1,0 +1,25 @@
+/**
+ * ESP32 hardware random generator.
+ *
+ * Uses esp_random() which returns cryptographically secure random values
+ * sourced from the Wi-Fi/BT noise.
+ *
+ * This implementation is only available on ESP32.
+ */
+
+#ifndef ESP32_RANDOM_GENERATOR_H
+#define ESP32_RANDOM_GENERATOR_H
+
+#ifdef ESP32
+
+#include "RandomGenerator.h"
+
+class Esp32RandomGenerator : public RandomGenerator {
+public:
+    uint32_t random_uint32() override;
+    uint64_t random_uint64() override;
+};
+
+#endif // ESP32
+
+#endif // ESP32_RANDOM_GENERATOR_H
