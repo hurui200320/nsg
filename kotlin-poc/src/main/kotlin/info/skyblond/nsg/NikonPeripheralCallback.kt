@@ -26,10 +26,9 @@ class NikonPeripheralCallback(
     // 2, 4: cam to us
     private var handshakeStageCounter = 0
 
+    // stage 1 and 2 messages are required to compute stage 3 message
     private var stage1Message: PairingMessage? = null
     private var stage2Message: PairingMessage? = null
-    private var stage3Message: PairingMessage? = null
-    private var stage4Message: PairingMessage? = null
 
     override fun onServicesDiscovered(
         peripheral: BluetoothPeripheral,
@@ -96,7 +95,7 @@ class NikonPeripheralCallback(
                         handshakeStageCounter = 2
                         stage2Message = PairingMessage.decode(value)
                         logger.info("Received handshake stage 2 message: $stage2Message")
-                        stage3Message = pairingEngine.verifyStage2AndBuildStage3(
+                        val stage3Message = pairingEngine.verifyStage2AndBuildStage3(
                             stage1Message!!, stage2Message!!
                         )
                         // now sending stage 3 message
@@ -104,15 +103,15 @@ class NikonPeripheralCallback(
                         handshakeStageCounter = 3
                         peripheral.writeCharacteristic(
                             NIKON_SERVICE_UUID, PAIR_CHAR_UUID,
-                            stage3Message!!.encode(),
+                            stage3Message.encode(),
                             BluetoothGattCharacteristic.WriteType.WITH_RESPONSE
                         )
                     }
 
                     3 -> { // we send stage 3, now it's stage 4
-                        stage4Message = PairingMessage.decode(value)
+                        val stage4Message = PairingMessage.decode(value)
                         logger.info("Received handshake stage 4 message: $stage4Message")
-                        val serial = pairingEngine.extractSerial(stage4Message!!)
+                        val serial = pairingEngine.extractSerial(stage4Message)
                         logger.info("Camera serial: $serial")
                         // now we should expect 01 00 on NOT1, wait 3 seconds
                         Thread.sleep(3000)

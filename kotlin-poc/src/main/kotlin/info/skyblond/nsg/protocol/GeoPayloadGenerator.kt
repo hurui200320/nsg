@@ -26,6 +26,7 @@ object GeoPayloadGenerator {
 
         val latCoord = decimalToNikon(lat, 'N', 'S')
         val lonCoord = decimalToNikon(lon, 'E', 'W')
+        val altitudeRef = if (alt >= 0) 'P' else 'M'
 
         val buffer = ByteBuffer.allocate(41).order(ByteOrder.LITTLE_ENDIAN)
         buffer.putShort(HEADER)
@@ -40,7 +41,7 @@ object GeoPayloadGenerator {
         buffer.put(lonCoord.submin1.toByte())
         buffer.put(lonCoord.submin2.toByte())
         buffer.put(satellites.toByte())
-        buffer.put(if (alt >= 0) 'P'.code.toByte() else 'M'.code.toByte()) // altitude ref = positive
+        buffer.put(altitudeRef.code.toByte())
         buffer.putShort(alt.absoluteValue.toShort())
         // Embedded 7-byte time: year LE, month, day, hour, minute, second
         buffer.putShort(now.year.toShort())
