@@ -92,6 +92,7 @@ class NikonPeripheralCallback(
                     status, value.toHex(" ")
                 )
             }
+
             NOT2_CHAR_UUID -> {
                 logger.info(
                     "onCharacteristicUpdate descriptor: NOT2, status: {}, value: {}",
