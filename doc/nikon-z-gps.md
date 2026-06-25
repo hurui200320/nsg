@@ -283,7 +283,7 @@ After the `ID` characteristic has been written, the camera switches from BLE pai
 Once the classic bond exists, the camera will allow the `GEO` characteristic to be written.
 
 
-The `TIME` characteristic (`0x2006`) payload is **10 bytes**.
+The `TIME` characteristic (`0x2006`) payload is **10 bytes**. The time used in value should be UTC, and timezone info is provided via offsets.
 
 | Offset | Size | Field             | Description                        |
 |--------|------|-------------------|------------------------------------|
@@ -297,7 +297,10 @@ The `TIME` characteristic (`0x2006`) payload is **10 bytes**.
 | 8      | 1    | tz_offset_hours   | Timezone offset hours (semantics unknown)  |
 | 9      | 1    | tz_offset_minutes | Timezone offset minutes (semantics unknown) |
 
-> **Note:** This payload is defined in the protocol but is **not currently written** in the known GPS-only flow.  The GPS payload itself embeds a full timestamp, which appears to be sufficient for location tagging.
+> **Note:** The camera won't update it's time using GPS payload.
+
+When getting ATT status 0x80, it means somehow the camera is rejecting the GPS.
+In this case, we should actively disconnect, then re-scan and reconnect (also re-handshake).
 
 ---
 

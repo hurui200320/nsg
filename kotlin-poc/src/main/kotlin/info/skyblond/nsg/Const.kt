@@ -30,8 +30,14 @@ object Const {
     val ID_CHAR_UUID = UUID.fromString("00002002-3dd4-4255-8d62-6dc7b9bd5561")
 
     /**
-     * Characteristic for writing GEO message, providing location and time to camera.
+     * Characteristic for writing GEO message, providing location to camera.
      * */
     @JvmStatic
     val GEO_CHAR_UUID = UUID.fromString("00002007-3dd4-4255-8d62-6dc7b9bd5561")
+
+    /**
+     * Characteristic for writing TIME message, providing time to camera.
+     * */
+    @JvmStatic
+    val TIME_CHAR_UUID = UUID.fromString("00002006-3dd4-4255-8d62-6dc7b9bd5561")
 }

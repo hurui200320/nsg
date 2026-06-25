@@ -71,6 +71,9 @@ class NikonPeripheralCallback(
         status: BluetoothCommandStatus
     ) {
         logger.info("onCharacteristicWrite descriptor: ${characteristic.uuid}, status: $status")
+        if (status != BluetoothCommandStatus.COMMAND_SUCCESS) {
+            peripheral.cancelConnection()
+        }
     }
 
     override fun onCharacteristicUpdate(
