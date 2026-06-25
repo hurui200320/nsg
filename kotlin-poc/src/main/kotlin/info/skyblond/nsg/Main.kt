@@ -3,7 +3,7 @@ package info.skyblond.nsg
 import com.welie.blessed.*
 import info.skyblond.nsg.Const.GEO_CHAR_UUID
 import info.skyblond.nsg.Const.NIKON_SERVICE_UUID
-import info.skyblond.nsp.ble.GeoPayloadGenerator
+import info.skyblond.nsg.protocol.GeoPayloadGenerator
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.random.Random

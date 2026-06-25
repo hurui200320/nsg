@@ -5,8 +5,8 @@ import info.skyblond.nsg.Const.ID_CHAR_UUID
 import info.skyblond.nsg.Const.NIKON_SERVICE_UUID
 import info.skyblond.nsg.Const.NOT1_CHAR_UUID
 import info.skyblond.nsg.Const.PAIR_CHAR_UUID
-import info.skyblond.nsp.ble.protocol.NikonPairingEngine
-import info.skyblond.nsp.ble.protocol.PairingMessage
+import info.skyblond.nsg.protocol.NikonPairingEngine
+import info.skyblond.nsg.protocol.PairingMessage
 
 /**
  * Perform handshake for pairing, then disconnect

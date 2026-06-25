@@ -1,4 +1,4 @@
-package info.skyblond.nsp.ble.protocol
+package info.skyblond.nsg.protocol
 
 import java.security.SecureRandom
 
