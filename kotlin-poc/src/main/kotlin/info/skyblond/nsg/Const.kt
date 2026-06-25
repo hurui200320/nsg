@@ -21,6 +21,8 @@ object Const {
      * */
     @JvmStatic
     val NOT1_CHAR_UUID = UUID.fromString("00002008-3dd4-4255-8d62-6dc7b9bd5561")
+    @JvmStatic
+    val NOT2_CHAR_UUID = UUID.fromString("0000200a-3dd4-4255-8d62-6dc7b9bd5561")
 
     /**
      * Characteristic for writing controller's id.

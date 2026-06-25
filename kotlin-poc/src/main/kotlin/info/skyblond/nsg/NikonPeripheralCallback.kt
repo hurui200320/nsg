@@ -4,6 +4,7 @@ import com.welie.blessed.*
 import info.skyblond.nsg.Const.ID_CHAR_UUID
 import info.skyblond.nsg.Const.NIKON_SERVICE_UUID
 import info.skyblond.nsg.Const.NOT1_CHAR_UUID
+import info.skyblond.nsg.Const.NOT2_CHAR_UUID
 import info.skyblond.nsg.Const.PAIR_CHAR_UUID
 import info.skyblond.nsg.protocol.NikonPairingEngine
 import info.skyblond.nsg.protocol.PairingMessage
@@ -40,8 +41,9 @@ class NikonPeripheralCallback(
         logger.info("Enable notify on characteristic PAIR")
         peripheral.setNotify(NIKON_SERVICE_UUID, PAIR_CHAR_UUID, true)
 
-        logger.info("Enable notify on characteristic NOT1")
+        logger.info("Enable notify on characteristic NOT1 and NOT2")
         peripheral.setNotify(NIKON_SERVICE_UUID, NOT1_CHAR_UUID, true)
+        peripheral.setNotify(NIKON_SERVICE_UUID, NOT2_CHAR_UUID, true)
 
         // begin handshake, send stage 1 message
         logger.info("Start handshake, sending stage 1 message...")
@@ -87,6 +89,12 @@ class NikonPeripheralCallback(
             NOT1_CHAR_UUID -> {
                 logger.info(
                     "onCharacteristicUpdate descriptor: NOT1, status: {}, value: {}",
+                    status, value.toHex(" ")
+                )
+            }
+            NOT2_CHAR_UUID -> {
+                logger.info(
+                    "onCharacteristicUpdate descriptor: NOT2, status: {}, value: {}",
                     status, value.toHex(" ")
                 )
             }
