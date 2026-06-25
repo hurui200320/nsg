@@ -23,6 +23,7 @@ object GeoPayloadGenerator {
         lat: Double, lon: Double, alt: Int, satellites: Int
     ): ByteArray {
         val now = ZonedDateTime.now(ZoneOffset.UTC)
+        val centisecond = (System.currentTimeMillis() % 1000) / 10
 
         val latCoord = decimalToNikon(lat, 'N', 'S')
         val lonCoord = decimalToNikon(lon, 'E', 'W')
@@ -50,7 +51,7 @@ object GeoPayloadGenerator {
         buffer.put(now.hour.toByte())
         buffer.put(now.minute.toByte())
         buffer.put(now.second.toByte())
-        buffer.put((System.currentTimeMillis() % 1000).toByte()) // subseconds
+        buffer.put(centisecond.toByte()) // subseconds
         buffer.put(0x01.toByte()) // valid
         buffer.put("WGS-84".toByteArray(Charsets.US_ASCII))
         // 10 bytes padding
