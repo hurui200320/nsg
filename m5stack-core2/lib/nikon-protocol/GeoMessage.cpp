@@ -2,21 +2,22 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <tuple>
 
 GeoMessage::GeoMessage(
-    char lat_direction, uint8_t lat_degrees, uint8_t lat_minutes,
-    uint8_t lat_submin1, uint8_t lat_submin2,
-    char lon_direction, uint8_t lon_degrees, uint8_t lon_minutes,
-    uint8_t lon_submin1, uint8_t lon_submin2,
-    uint8_t satellites, char altitude_ref, uint16_t altitude,
+    char latDirection, uint8_t latDegrees, uint8_t latMinutes,
+    uint8_t latSubmin1, uint8_t latSubmin2,
+    char lonDirection, uint8_t lonDegrees, uint8_t lonMinutes,
+    uint8_t lonSubmin1, uint8_t lonSubmin2,
+    uint8_t satellites, char altitudeRef, uint16_t altitude,
     uint16_t year, uint8_t month, uint8_t day,
     uint8_t hour, uint8_t minute, uint8_t second,
     uint8_t centiseconds, uint8_t valid
-) : lat_direction(lat_direction), lat_degrees(lat_degrees), lat_minutes(lat_minutes),
-    lat_submin1(lat_submin1), lat_submin2(lat_submin2),
-    lon_direction(lon_direction), lon_degrees(lon_degrees), lon_minutes(lon_minutes),
-    lon_submin1(lon_submin1), lon_submin2(lon_submin2),
-    satellites(satellites), altitude_ref(altitude_ref), altitude(altitude),
+) : latDirection(latDirection), latDegrees(latDegrees), latMinutes(latMinutes),
+    latSubmin1(latSubmin1), latSubmin2(latSubmin2),
+    lonDirection(lonDirection), lonDegrees(lonDegrees), lonMinutes(lonMinutes),
+    lonSubmin1(lonSubmin1), lonSubmin2(lonSubmin2),
+    satellites(satellites), altitudeRef(altitudeRef), altitude(altitude),
     year(year), month(month), day(day),
     hour(hour), minute(minute), second(second),
     centiseconds(centiseconds), valid(valid) {
@@ -30,17 +31,17 @@ GeoMessage GeoMessage::fromDecimal(
     uint8_t hour, uint8_t minute, uint8_t second,
     uint8_t centiseconds, uint8_t valid
 ) {
-    DirectionalCoordinate lat_coord = decimalToNikon(lat, 'N', 'S');
-    DirectionalCoordinate lon_coord = decimalToNikon(lon, 'E', 'W');
-    char altitude_ref = (altitude >= 0) ? 'P' : 'M';
-    uint16_t abs_altitude = static_cast<uint16_t>(std::abs(altitude));
+    DirectionalCoordinate latCoord = decimalToNikon(lat, 'N', 'S');
+    DirectionalCoordinate lonCoord = decimalToNikon(lon, 'E', 'W');
+    char altitudeRef = (altitude >= 0) ? 'P' : 'M';
+    uint16_t absAltitude = static_cast<uint16_t>(std::abs(altitude));
 
     return GeoMessage(
-        lat_coord.direction, lat_coord.degrees, lat_coord.minutes,
-        lat_coord.submin1, lat_coord.submin2,
-        lon_coord.direction, lon_coord.degrees, lon_coord.minutes,
-        lon_coord.submin1, lon_coord.submin2,
-        satellites, altitude_ref, abs_altitude,
+        latCoord.direction, latCoord.degrees, latCoord.minutes,
+        latCoord.submin1, latCoord.submin2,
+        lonCoord.direction, lonCoord.degrees, lonCoord.minutes,
+        lonCoord.submin1, lonCoord.submin2,
+        satellites, altitudeRef, absAltitude,
         year, month, day, hour, minute, second, centiseconds, valid
     );
 }
@@ -50,21 +51,21 @@ void GeoMessage::encode(uint8_t *buffer) const {
     buffer[0] = static_cast<uint8_t>(0x7F);
     buffer[1] = static_cast<uint8_t>(0x00);
 
-    buffer[2] = static_cast<uint8_t>(lat_direction);
-    buffer[3] = lat_degrees;
-    buffer[4] = lat_minutes;
-    buffer[5] = lat_submin1;
-    buffer[6] = lat_submin2;
+    buffer[2] = static_cast<uint8_t>(latDirection);
+    buffer[3] = latDegrees;
+    buffer[4] = latMinutes;
+    buffer[5] = latSubmin1;
+    buffer[6] = latSubmin2;
 
-    buffer[7] = static_cast<uint8_t>(lon_direction);
-    buffer[8] = lon_degrees;
-    buffer[9] = lon_minutes;
-    buffer[10] = lon_submin1;
-    buffer[11] = lon_submin2;
+    buffer[7] = static_cast<uint8_t>(lonDirection);
+    buffer[8] = lonDegrees;
+    buffer[9] = lonMinutes;
+    buffer[10] = lonSubmin1;
+    buffer[11] = lonSubmin2;
 
     buffer[12] = satellites;
 
-    buffer[13] = static_cast<uint8_t>(altitude_ref);
+    buffer[13] = static_cast<uint8_t>(altitudeRef);
     buffer[14] = static_cast<uint8_t>(altitude & 0xFF);
     buffer[15] = static_cast<uint8_t>((altitude >> 8) & 0xFF);
 
@@ -83,21 +84,21 @@ void GeoMessage::encode(uint8_t *buffer) const {
 }
 
 GeoMessage GeoMessage::decode(const uint8_t *data) {
-    char lat_direction = static_cast<char>(data[2]);
-    uint8_t lat_degrees = data[3];
-    uint8_t lat_minutes = data[4];
-    uint8_t lat_submin1 = data[5];
-    uint8_t lat_submin2 = data[6];
+    char latDirection = static_cast<char>(data[2]);
+    uint8_t latDegrees = data[3];
+    uint8_t latMinutes = data[4];
+    uint8_t latSubmin1 = data[5];
+    uint8_t latSubmin2 = data[6];
 
-    char lon_direction = static_cast<char>(data[7]);
-    uint8_t lon_degrees = data[8];
-    uint8_t lon_minutes = data[9];
-    uint8_t lon_submin1 = data[10];
-    uint8_t lon_submin2 = data[11];
+    char lonDirection = static_cast<char>(data[7]);
+    uint8_t lonDegrees = data[8];
+    uint8_t lonMinutes = data[9];
+    uint8_t lonSubmin1 = data[10];
+    uint8_t lonSubmin2 = data[11];
 
     uint8_t satellites = data[12];
 
-    char altitude_ref = static_cast<char>(data[13]);
+    char altitudeRef = static_cast<char>(data[13]);
     uint16_t altitude =
         static_cast<uint16_t>(data[14]) |
         (static_cast<uint16_t>(data[15]) << 8);
@@ -114,9 +115,9 @@ GeoMessage GeoMessage::decode(const uint8_t *data) {
     uint8_t valid = data[24];
 
     GeoMessage message(
-        lat_direction, lat_degrees, lat_minutes, lat_submin1, lat_submin2,
-        lon_direction, lon_degrees, lon_minutes, lon_submin1, lon_submin2,
-        satellites, altitude_ref, altitude,
+        latDirection, latDegrees, latMinutes, latSubmin1, latSubmin2,
+        lonDirection, lonDegrees, lonMinutes, lonSubmin1, lonSubmin2,
+        satellites, altitudeRef, altitude,
         year, month, day, hour, minute, second, centiseconds, valid
     );
 
@@ -127,43 +128,33 @@ GeoMessage GeoMessage::decode(const uint8_t *data) {
 }
 
 bool GeoMessage::operator==(const GeoMessage &other) const {
-    return lat_direction == other.lat_direction &&
-           lat_degrees == other.lat_degrees &&
-           lat_minutes == other.lat_minutes &&
-           lat_submin1 == other.lat_submin1 &&
-           lat_submin2 == other.lat_submin2 &&
-           lon_direction == other.lon_direction &&
-           lon_degrees == other.lon_degrees &&
-           lon_minutes == other.lon_minutes &&
-           lon_submin1 == other.lon_submin1 &&
-           lon_submin2 == other.lon_submin2 &&
-           satellites == other.satellites &&
-           altitude_ref == other.altitude_ref &&
-           altitude == other.altitude &&
-           year == other.year &&
-           month == other.month &&
-           day == other.day &&
-           hour == other.hour &&
-           minute == other.minute &&
-           second == other.second &&
-           centiseconds == other.centiseconds &&
-           valid == other.valid &&
+    return std::tie(
+               latDirection, latDegrees, latMinutes, latSubmin1, latSubmin2,
+               lonDirection, lonDegrees, lonMinutes, lonSubmin1, lonSubmin2,
+               satellites, altitudeRef, altitude, year, month, day,
+               hour, minute, second, centiseconds, valid
+           ) == std::tie(
+               other.latDirection, other.latDegrees, other.latMinutes, other.latSubmin1, other.latSubmin2,
+               other.lonDirection, other.lonDegrees, other.lonMinutes, other.lonSubmin1, other.lonSubmin2,
+               other.satellites, other.altitudeRef, other.altitude, other.year, other.month, other.day,
+               other.hour, other.minute, other.second, other.centiseconds, other.valid
+           ) &&
            std::memcmp(datum, other.datum, 6) == 0 &&
            std::memcmp(padding, other.padding, 10) == 0;
 }
 
 GeoMessage::DirectionalCoordinate GeoMessage::decimalToNikon(
-    double decimal, char positive_direction, char negative_direction
+    double decimal, char positiveDirection, char negativeDirection
 ) {
-    char direction = (decimal < 0.0) ? negative_direction : positive_direction;
+    char direction = (decimal < 0.0) ? negativeDirection : positiveDirection;
     double abs = std::abs(decimal);
     uint8_t degrees = static_cast<uint8_t>(abs);
-    double minutes_full = (abs - degrees) * 60.0;
-    uint8_t minutes = static_cast<uint8_t>(minutes_full);
-    double submin1_full = (minutes_full - minutes) * 100.0;
-    uint8_t submin1 = static_cast<uint8_t>(submin1_full);
-    double submin2_full = (submin1_full - submin1) * 100.0;
-    uint8_t submin2 = static_cast<uint8_t>(submin2_full);
+    double minutesFull = (abs - degrees) * 60.0;
+    uint8_t minutes = static_cast<uint8_t>(minutesFull);
+    double submin1Full = (minutesFull - minutes) * 100.0;
+    uint8_t submin1 = static_cast<uint8_t>(submin1Full);
+    double submin2Full = (submin1Full - submin1) * 100.0;
+    uint8_t submin2 = static_cast<uint8_t>(submin2Full);
 
     return {direction, degrees, minutes, submin1, submin2};
 }

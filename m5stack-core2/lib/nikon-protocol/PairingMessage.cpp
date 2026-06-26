@@ -1,5 +1,7 @@
 #include "PairingMessage.h"
 
+#include <tuple>
+
 PairingMessage::PairingMessage(
     uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce
 ) : stage(stage), timestamp(timestamp), device(device), nonce(nonce) {
@@ -57,8 +59,6 @@ PairingMessage PairingMessage::decode(const uint8_t *data) {
 }
 
 bool PairingMessage::operator==(const PairingMessage &other) const {
-    return stage == other.stage &&
-           timestamp == other.timestamp &&
-           device == other.device &&
-           nonce == other.nonce;
+    return std::tie(stage, timestamp, device, nonce) ==
+           std::tie(other.stage, other.timestamp, other.device, other.nonce);
 }

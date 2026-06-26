@@ -16,8 +16,8 @@
 
 class Esp32RandomGenerator : public RandomGenerator {
 public:
-    uint32_t random_uint32() override;
-    uint64_t random_uint64() override;
+    uint32_t nextUInt32() override;
+    uint64_t nextUInt64() override;
 };
 
 #endif // ESP32

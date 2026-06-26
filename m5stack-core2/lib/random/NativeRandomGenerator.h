@@ -1,8 +1,9 @@
 /**
  * Native random generator for unit testing.
  *
- * Uses std::random_device as a secure source of non-deterministic random
- * values. Falls back to std::mt19937 if std::random_device is not available.
+ * Uses std::random_device as a source of non-deterministic random values.
+ * If std::random_device is deterministic on the host platform the output
+ * will be predictable, which is acceptable for the native test target.
  *
  * This implementation is only available on non-ESP32 platforms.
  */
@@ -20,12 +21,11 @@ class NativeRandomGenerator : public RandomGenerator {
 public:
     NativeRandomGenerator();
 
-    uint32_t random_uint32() override;
-    uint64_t random_uint64() override;
+    uint32_t nextUInt32() override;
+    uint64_t nextUInt64() override;
 
 private:
     std::random_device rd;
-    std::mt19937 fallback;
     std::uniform_int_distribution<uint32_t> dist32;
     std::uniform_int_distribution<uint64_t> dist64;
 };

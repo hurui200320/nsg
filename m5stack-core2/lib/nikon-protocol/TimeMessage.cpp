@@ -1,12 +1,14 @@
 #include "TimeMessage.h"
 
+#include <tuple>
+
 TimeMessage::TimeMessage(
     uint16_t year, uint8_t month, uint8_t day,
     uint8_t hour, uint8_t minute, uint8_t second,
-    int8_t dst_offset, int8_t tz_offset_hours, int8_t tz_offset_minutes
+    int8_t dstOffset, int8_t tzOffsetHours, int8_t tzOffsetMinutes
 ) : year(year), month(month), day(day),
     hour(hour), minute(minute), second(second),
-    dst_offset(dst_offset), tz_offset_hours(tz_offset_hours), tz_offset_minutes(tz_offset_minutes) {
+    dstOffset(dstOffset), tzOffsetHours(tzOffsetHours), tzOffsetMinutes(tzOffsetMinutes) {
 }
 
 void TimeMessage::encode(uint8_t *buffer) const {
@@ -18,9 +20,9 @@ void TimeMessage::encode(uint8_t *buffer) const {
     buffer[5] = minute;
     buffer[6] = second;
 
-    buffer[7] = dst_offset;
-    buffer[8] = static_cast<uint8_t>(tz_offset_hours);
-    buffer[9] = static_cast<uint8_t>(tz_offset_minutes);
+    buffer[7] = static_cast<uint8_t>(dstOffset);
+    buffer[8] = static_cast<uint8_t>(tzOffsetHours);
+    buffer[9] = static_cast<uint8_t>(tzOffsetMinutes);
 }
 
 TimeMessage TimeMessage::decode(const uint8_t *data) {
@@ -34,25 +36,23 @@ TimeMessage TimeMessage::decode(const uint8_t *data) {
     uint8_t minute = data[5];
     uint8_t second = data[6];
 
-    uint8_t dst_offset = data[7];
-    int8_t tz_offset_hours = static_cast<int8_t>(data[8]);
-    int8_t tz_offset_minutes = static_cast<int8_t>(data[9]);
+    int8_t dstOffset = static_cast<int8_t>(data[7]);
+    int8_t tzOffsetHours = static_cast<int8_t>(data[8]);
+    int8_t tzOffsetMinutes = static_cast<int8_t>(data[9]);
 
     return TimeMessage(
         year, month, day,
         hour, minute, second,
-        dst_offset, tz_offset_hours, tz_offset_minutes
+        dstOffset, tzOffsetHours, tzOffsetMinutes
     );
 }
 
 bool TimeMessage::operator==(const TimeMessage &other) const {
-    return year == other.year &&
-           month == other.month &&
-           day == other.day &&
-           hour == other.hour &&
-           minute == other.minute &&
-           second == other.second &&
-           dst_offset == other.dst_offset &&
-           tz_offset_hours == other.tz_offset_hours &&
-           tz_offset_minutes == other.tz_offset_minutes;
+    return std::tie(
+               year, month, day, hour, minute, second,
+               dstOffset, tzOffsetHours, tzOffsetMinutes
+           ) == std::tie(
+               other.year, other.month, other.day, other.hour, other.minute, other.second,
+               other.dstOffset, other.tzOffsetHours, other.tzOffsetMinutes
+           );
 }

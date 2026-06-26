@@ -2,7 +2,7 @@
 
 #include "GeoMessage.h"
 
-void test_from_decimal_encode_decode_round_trip() {
+void testFromDecimalEncodeDecodeRoundTrip() {
     GeoMessage original = GeoMessage::fromDecimal(
         41.289491667, 87.10866, 237, 11,
         2026, 6, 25, 12, 42, 29, 90,
@@ -37,7 +37,7 @@ void test_from_decimal_encode_decode_round_trip() {
     TEST_ASSERT_TRUE(original == decoded);
 }
 
-void test_negative_altitude_and_longitude() {
+void testNegativeAltitudeAndLongitude() {
     GeoMessage original = GeoMessage::fromDecimal(
         -33.868820, -151.209290, -10, 12,
         2024, 1, 15, 8, 30, 45,
@@ -64,8 +64,8 @@ void test_negative_altitude_and_longitude() {
 void setup() {
     delay(2000);
     UNITY_BEGIN();
-    RUN_TEST(test_from_decimal_encode_decode_round_trip);
-    RUN_TEST(test_negative_altitude_and_longitude);
+    RUN_TEST(testFromDecimalEncodeDecodeRoundTrip);
+    RUN_TEST(testNegativeAltitudeAndLongitude);
     UNITY_END();
 }
 
@@ -76,8 +76,8 @@ void loop() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_from_decimal_encode_decode_round_trip);
-    RUN_TEST(test_negative_altitude_and_longitude);
+    RUN_TEST(testFromDecimalEncodeDecodeRoundTrip);
+    RUN_TEST(testNegativeAltitudeAndLongitude);
     UNITY_END();
 
     return 0;

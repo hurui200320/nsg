@@ -2,7 +2,7 @@
 
 #include "BlowfishHasher.h"
 
-void test_captured_camera_hash_matches_furble() {
+void testCapturedCameraHashMatchesFurble() {
     static const uint32_t blocks[] = {
         0xcd32687f, 0xa9e28a30,
         0x29fa2680, 0x5e3d94b9,
@@ -22,7 +22,7 @@ void test_captured_camera_hash_matches_furble() {
 void setup() {
     delay(2000);
     UNITY_BEGIN();
-    RUN_TEST(test_captured_camera_hash_matches_furble);
+    RUN_TEST(testCapturedCameraHashMatchesFurble);
     UNITY_END();
 }
 
@@ -33,7 +33,7 @@ void loop() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_captured_camera_hash_matches_furble);
+    RUN_TEST(testCapturedCameraHashMatchesFurble);
     UNITY_END();
 
     return 0;

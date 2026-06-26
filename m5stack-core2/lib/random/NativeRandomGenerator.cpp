@@ -3,21 +3,15 @@
 #ifndef ESP32
 
 NativeRandomGenerator::NativeRandomGenerator()
-    : fallback(rd()), dist32(0, UINT32_MAX), dist64(0, UINT64_MAX) {
+    : dist32(0, UINT32_MAX), dist64(0, UINT64_MAX) {
 }
 
-uint32_t NativeRandomGenerator::random_uint32() {
-    if (rd.entropy() > 0) {
-        return dist32(rd);
-    }
-    return dist32(fallback);
+uint32_t NativeRandomGenerator::nextUInt32() {
+    return dist32(rd);
 }
 
-uint64_t NativeRandomGenerator::random_uint64() {
-    if (rd.entropy() > 0) {
-        return dist64(rd);
-    }
-    return dist64(fallback);
+uint64_t NativeRandomGenerator::nextUInt64() {
+    return dist64(rd);
 }
 
 #endif // !ESP32

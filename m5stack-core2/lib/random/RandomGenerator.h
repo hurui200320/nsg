@@ -15,9 +15,9 @@ class RandomGenerator {
 public:
     virtual ~RandomGenerator() = default;
 
-    virtual uint32_t random_uint32() = 0;
+    virtual uint32_t nextUInt32() = 0;
 
-    virtual uint64_t random_uint64() = 0;
+    virtual uint64_t nextUInt64() = 0;
 };
 
 #endif // RANDOM_GENERATOR_H

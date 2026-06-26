@@ -11,33 +11,33 @@
 #endif
 
 #ifdef ESP32
-static Esp32RandomGenerator random_generator;
+static Esp32RandomGenerator randomGenerator;
 #else
-static NativeRandomGenerator random_generator;
+static NativeRandomGenerator randomGenerator;
 #endif
 
 static BlowfishHasher hasher;
-static NikonPairingEngine engine(random_generator, hasher);
+static NikonPairingEngine engine(randomGenerator, hasher);
 
-void test_stage1_device_has_required_lsb() {
-    const PairingMessage stage1 = engine.create_stage1(nullptr, nullptr);
+void testStage1DeviceHasRequiredLsb() {
+    const PairingMessage stage1 = engine.createStage1(nullptr, nullptr);
 
     TEST_ASSERT_EQUAL_UINT8(0x01, stage1.stage);
     TEST_ASSERT_EQUAL_UINT8(0x01, static_cast<uint8_t>(stage1.device & 0xFFU));
 }
 
-void test_stage1_device_is_stable_when_reusing_saved_camera() {
-    const uint32_t saved_device = 0xAABBCCDDU;
-    const uint32_t saved_nonce = 0x11223344U;
+void testStage1DeviceIsStableWhenReusingSavedCamera() {
+    const uint32_t savedDevice = 0xAABBCCDDU;
+    const uint32_t savedNonce = 0x11223344U;
     // note: with invalid input, we don't check
     // we always assume caller pass in valid device value
-    const PairingMessage stage1 = engine.create_stage1(&saved_device, &saved_nonce);
+    const PairingMessage stage1 = engine.createStage1(&savedDevice, &savedNonce);
 
-    TEST_ASSERT_EQUAL_UINT32(saved_device, stage1.device);
-    TEST_ASSERT_EQUAL_UINT32(saved_nonce, stage1.nonce);
+    TEST_ASSERT_EQUAL_UINT32(savedDevice, stage1.device);
+    TEST_ASSERT_EQUAL_UINT32(savedNonce, stage1.nonce);
 }
 
-void test_captured_stage2_finds_salt_six_and_builds_expected_stage3() {
+void testCapturedStage2FindsSaltSixAndBuildsExpectedStage3() {
     // Real values captured from the Z50_2 camera handshake.
     const PairingMessage stage1(
         0x01,
@@ -52,7 +52,7 @@ void test_captured_stage2_finds_salt_six_and_builds_expected_stage3() {
         0x16d56a13U
     );
 
-    const PairingMessage stage3 = engine.verify_stage2_and_build_stage3(stage1, stage2);
+    const PairingMessage stage3 = engine.verifyStage2AndBuildStage3(stage1, stage2);
 
     TEST_ASSERT_EQUAL_UINT8(0x03, stage3.stage);
     TEST_ASSERT_EQUAL_UINT64(stage1.timestamp, stage3.timestamp);
@@ -72,11 +72,11 @@ void test_captured_stage2_finds_salt_six_and_builds_expected_stage3() {
     TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, encoded, PairingMessage::SIZE);
 }
 
-void test_stage3_fails_with_zero_stage2() {
-    const PairingMessage stage1 = engine.create_stage1(nullptr, nullptr);
+void testStage3FailsWithZeroStage2() {
+    const PairingMessage stage1 = engine.createStage1(nullptr, nullptr);
     const PairingMessage stage2(0x02, 0ULL, 0U, 0U);
 
-    const PairingMessage stage3 = engine.verify_stage2_and_build_stage3(stage1, stage2);
+    const PairingMessage stage3 = engine.verifyStage2AndBuildStage3(stage1, stage2);
 
     // With zero stage2, salt verification should fail and return a zeroed message.
     // Since we return value, not pointer, this is the best we can do.
@@ -86,7 +86,7 @@ void test_stage3_fails_with_zero_stage2() {
     TEST_ASSERT_EQUAL_UINT32(0U, stage3.nonce);
 }
 
-void test_extract_serial_reads_stage4_bytes() {
+void testExtractSerialReadsStage4Bytes() {
     // Stage 4 payload where bytes 9..16 spell "Z50_2000".
     const PairingMessage stage4(
         0x04,
@@ -96,7 +96,7 @@ void test_extract_serial_reads_stage4_bytes() {
     );
 
     char serial[9];
-    engine.extract_serial(stage4, serial);
+    engine.extractSerial(stage4, serial);
 
     TEST_ASSERT_EQUAL_STRING("Z50_2000", serial);
 }
@@ -107,11 +107,11 @@ void test_extract_serial_reads_stage4_bytes() {
 void setup() {
     delay(2000);
     UNITY_BEGIN();
-    RUN_TEST(test_stage1_device_has_required_lsb);
-    RUN_TEST(test_stage1_device_is_stable_when_reusing_saved_camera);
-    RUN_TEST(test_captured_stage2_finds_salt_six_and_builds_expected_stage3);
-    RUN_TEST(test_stage3_fails_with_zero_stage2);
-    RUN_TEST(test_extract_serial_reads_stage4_bytes);
+    RUN_TEST(testStage1DeviceHasRequiredLsb);
+    RUN_TEST(testStage1DeviceIsStableWhenReusingSavedCamera);
+    RUN_TEST(testCapturedStage2FindsSaltSixAndBuildsExpectedStage3);
+    RUN_TEST(testStage3FailsWithZeroStage2);
+    RUN_TEST(testExtractSerialReadsStage4Bytes);
     UNITY_END();
 }
 
@@ -122,11 +122,11 @@ void loop() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_stage1_device_has_required_lsb);
-    RUN_TEST(test_stage1_device_is_stable_when_reusing_saved_camera);
-    RUN_TEST(test_captured_stage2_finds_salt_six_and_builds_expected_stage3);
-    RUN_TEST(test_stage3_fails_with_zero_stage2);
-    RUN_TEST(test_extract_serial_reads_stage4_bytes);
+    RUN_TEST(testStage1DeviceHasRequiredLsb);
+    RUN_TEST(testStage1DeviceIsStableWhenReusingSavedCamera);
+    RUN_TEST(testCapturedStage2FindsSaltSixAndBuildsExpectedStage3);
+    RUN_TEST(testStage3FailsWithZeroStage2);
+    RUN_TEST(testExtractSerialReadsStage4Bytes);
     UNITY_END();
 
     return 0;

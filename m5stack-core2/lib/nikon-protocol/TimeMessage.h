@@ -33,14 +33,14 @@ public:
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
-    int8_t dst_offset;
-    int8_t tz_offset_hours;
-    int8_t tz_offset_minutes;
+    int8_t dstOffset;
+    int8_t tzOffsetHours;
+    int8_t tzOffsetMinutes;
 
     TimeMessage(
         uint16_t year, uint8_t month, uint8_t day,
         uint8_t hour, uint8_t minute, uint8_t second,
-        int8_t dst_offset, int8_t tz_offset_hours, int8_t tz_offset_minutes
+        int8_t dstOffset, int8_t tzOffsetHours, int8_t tzOffsetMinutes
     );
 
     /**

@@ -40,18 +40,18 @@ class GeoMessage {
 public:
     static constexpr size_t SIZE = 41;
 
-    char lat_direction;
-    uint8_t lat_degrees;
-    uint8_t lat_minutes;
-    uint8_t lat_submin1;
-    uint8_t lat_submin2;
-    char lon_direction;
-    uint8_t lon_degrees;
-    uint8_t lon_minutes;
-    uint8_t lon_submin1;
-    uint8_t lon_submin2;
+    char latDirection;
+    uint8_t latDegrees;
+    uint8_t latMinutes;
+    uint8_t latSubmin1;
+    uint8_t latSubmin2;
+    char lonDirection;
+    uint8_t lonDegrees;
+    uint8_t lonMinutes;
+    uint8_t lonSubmin1;
+    uint8_t lonSubmin2;
     uint8_t satellites;
-    char altitude_ref;
+    char altitudeRef;
     uint16_t altitude;
     uint16_t year;
     uint8_t month;
@@ -69,11 +69,11 @@ public:
      * The caller is responsible for ensuring values fit the protocol layout.
      */
     GeoMessage(
-        char lat_direction, uint8_t lat_degrees, uint8_t lat_minutes,
-        uint8_t lat_submin1, uint8_t lat_submin2,
-        char lon_direction, uint8_t lon_degrees, uint8_t lon_minutes,
-        uint8_t lon_submin1, uint8_t lon_submin2,
-        uint8_t satellites, char altitude_ref, uint16_t altitude,
+        char latDirection, uint8_t latDegrees, uint8_t latMinutes,
+        uint8_t latSubmin1, uint8_t latSubmin2,
+        char lonDirection, uint8_t lonDegrees, uint8_t lonMinutes,
+        uint8_t lonSubmin1, uint8_t lonSubmin2,
+        uint8_t satellites, char altitudeRef, uint16_t altitude,
         uint16_t year, uint8_t month, uint8_t day,
         uint8_t hour, uint8_t minute, uint8_t second,
         uint8_t centiseconds, uint8_t valid
@@ -118,7 +118,7 @@ private:
     };
 
     static DirectionalCoordinate decimalToNikon(
-        double decimal, char positive_direction, char negative_direction
+        double decimal, char positiveDirection, char negativeDirection
     );
 };
 

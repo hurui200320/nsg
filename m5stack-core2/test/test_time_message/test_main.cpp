@@ -2,7 +2,7 @@
 
 #include "TimeMessage.h"
 
-void test_encode_decode_round_trip() {
+void testEncodeDecodeRoundTrip() {
     // 2026 Jun 25 20:18:38 UTC+8
     TimeMessage original(
         2026, 6, 25,
@@ -29,9 +29,9 @@ void test_encode_decode_round_trip() {
     TEST_ASSERT_EQUAL_UINT8(original.hour, decoded.hour);
     TEST_ASSERT_EQUAL_UINT8(original.minute, decoded.minute);
     TEST_ASSERT_EQUAL_UINT8(original.second, decoded.second);
-    TEST_ASSERT_EQUAL_INT8(original.dst_offset, decoded.dst_offset);
-    TEST_ASSERT_EQUAL_INT8(original.tz_offset_hours, decoded.tz_offset_hours);
-    TEST_ASSERT_EQUAL_INT8(original.tz_offset_minutes, decoded.tz_offset_minutes);
+    TEST_ASSERT_EQUAL_INT8(original.dstOffset, decoded.dstOffset);
+    TEST_ASSERT_EQUAL_INT8(original.tzOffsetHours, decoded.tzOffsetHours);
+    TEST_ASSERT_EQUAL_INT8(original.tzOffsetMinutes, decoded.tzOffsetMinutes);
 }
 
 #ifdef ARDUINO
@@ -40,7 +40,7 @@ void test_encode_decode_round_trip() {
 void setup() {
     delay(2000);
     UNITY_BEGIN();
-    RUN_TEST(test_encode_decode_round_trip);
+    RUN_TEST(testEncodeDecodeRoundTrip);
     UNITY_END();
 }
 
@@ -51,7 +51,7 @@ void loop() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_encode_decode_round_trip);
+    RUN_TEST(testEncodeDecodeRoundTrip);
     UNITY_END();
 
     return 0;

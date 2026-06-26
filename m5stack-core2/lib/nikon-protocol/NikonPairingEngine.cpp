@@ -13,44 +13,44 @@ const uint32_t NikonPairingEngine::SALTS[SALT_COUNT][2] = {
     {0x2a8fe834U, 0xdec7ebf4U}
 };
 
-NikonPairingEngine::NikonPairingEngine(RandomGenerator &random_generator, BlowfishHasher &hasher)
-    : random_generator(random_generator), hasher(hasher) {
+NikonPairingEngine::NikonPairingEngine(RandomGenerator &randomGenerator, BlowfishHasher &hasher)
+    : randomGenerator(randomGenerator), hasher(hasher) {
 }
 
-PairingMessage NikonPairingEngine::create_stage1(
-    const uint32_t *saved_device,
-    const uint32_t *saved_nonce
+PairingMessage NikonPairingEngine::createStage1(
+    const uint32_t *savedDevice,
+    const uint32_t *savedNonce
 ) {
-    const uint64_t timestamp = random_generator.random_uint64();
-    const uint32_t device = saved_device != nullptr ? *saved_device : generate_device_id();
-    const uint32_t nonce = saved_nonce != nullptr ? *saved_nonce : generate_nonce();
+    const uint64_t timestamp = randomGenerator.nextUInt64();
+    const uint32_t device = savedDevice != nullptr ? *savedDevice : generateDeviceId();
+    const uint32_t nonce = savedNonce != nullptr ? *savedNonce : generateNonce();
 
     return PairingMessage(0x01, timestamp, device, nonce);
 }
 
-PairingMessage NikonPairingEngine::verify_stage2_and_build_stage3(
+PairingMessage NikonPairingEngine::verifyStage2AndBuildStage3(
     const PairingMessage &stage1,
     const PairingMessage &stage2
 ) {
-    const int salt = find_salt(stage1, stage2);
+    const int salt = findSalt(stage1, stage2);
     if (salt < 0) {
         // No matching salt found, return a zeroed message as a safe failure indicator
         // (embedded builds typically run with exceptions disabled).
         return PairingMessage(0x00, 0ULL, 0U, 0U);
     }
 
-    uint32_t our_lo;
-    uint32_t our_hi;
-    timestamp_halves_be(stage1.timestamp, our_lo, our_hi);
+    uint32_t ourLo;
+    uint32_t ourHi;
+    timestampHalvesBe(stage1.timestamp, ourLo, ourHi);
 
-    uint32_t cam_lo;
-    uint32_t cam_hi;
-    timestamp_halves_be(stage2.timestamp, cam_lo, cam_hi);
+    uint32_t camLo;
+    uint32_t camHi;
+    timestampHalvesBe(stage2.timestamp, camLo, camHi);
 
     const uint32_t blocks[] = {
         SALTS[salt][0], SALTS[salt][1],
-        our_lo, our_hi,
-        cam_lo, cam_hi
+        ourLo, ourHi,
+        camLo, camHi
     };
 
     const BlowfishHasher::HashResult result = hasher.hash(blocks, 6);
@@ -58,12 +58,12 @@ PairingMessage NikonPairingEngine::verify_stage2_and_build_stage3(
     return PairingMessage(
         0x03,
         stage1.timestamp,
-        reverse_bytes_uint32(result.left),
-        reverse_bytes_uint32(result.right)
+        reverseBytesUInt32(result.left),
+        reverseBytesUInt32(result.right)
     );
 }
 
-void NikonPairingEngine::extract_serial(const PairingMessage &stage4, char *serial) {
+void NikonPairingEngine::extractSerial(const PairingMessage &stage4, char *serial) {
     uint8_t encoded[PairingMessage::SIZE];
     stage4.encode(encoded);
 
@@ -73,40 +73,40 @@ void NikonPairingEngine::extract_serial(const PairingMessage &stage4, char *seri
     serial[8] = '\0';
 }
 
-uint32_t NikonPairingEngine::generate_device_id() {
+uint32_t NikonPairingEngine::generateDeviceId() {
     // First byte on the wire must be 0x01. On a little-endian uint32 that means the LSB.
-    const uint32_t rnd = random_generator.random_uint32();
+    const uint32_t rnd = randomGenerator.nextUInt32();
     return (rnd & 0xFFFFFF00U) | 0x01U;
 }
 
-uint32_t NikonPairingEngine::generate_nonce() {
-    return random_generator.random_uint32();
+uint32_t NikonPairingEngine::generateNonce() {
+    return randomGenerator.nextUInt32();
 }
 
-int NikonPairingEngine::find_salt(
+int NikonPairingEngine::findSalt(
     const PairingMessage &stage1,
     const PairingMessage &stage2
 ) {
-    uint32_t cam_lo;
-    uint32_t cam_hi;
-    timestamp_halves_be(stage2.timestamp, cam_lo, cam_hi);
+    uint32_t camLo;
+    uint32_t camHi;
+    timestampHalvesBe(stage2.timestamp, camLo, camHi);
 
-    uint32_t our_lo;
-    uint32_t our_hi;
-    timestamp_halves_be(stage1.timestamp, our_lo, our_hi);
+    uint32_t ourLo;
+    uint32_t ourHi;
+    timestampHalvesBe(stage1.timestamp, ourLo, ourHi);
 
-    const uint32_t cam_device_be = reverse_bytes_uint32(stage2.device);
-    const uint32_t cam_nonce_be = reverse_bytes_uint32(stage2.nonce);
+    const uint32_t camDeviceBe = reverseBytesUInt32(stage2.device);
+    const uint32_t camNonceBe = reverseBytesUInt32(stage2.nonce);
 
     for (size_t i = 0; i < SALT_COUNT; ++i) {
         const uint32_t blocks[] = {
             SALTS[i][0], SALTS[i][1],
-            cam_lo, cam_hi,
-            our_lo, our_hi
+            camLo, camHi,
+            ourLo, ourHi
         };
 
         const BlowfishHasher::HashResult result = hasher.hash(blocks, 6);
-        if (result.left == cam_device_be && result.right == cam_nonce_be) {
+        if (result.left == camDeviceBe && result.right == camNonceBe) {
             return static_cast<int>(i);
         }
     }
@@ -114,16 +114,16 @@ int NikonPairingEngine::find_salt(
     return -1;
 }
 
-void NikonPairingEngine::timestamp_halves_be(
+void NikonPairingEngine::timestampHalvesBe(
     const uint64_t timestamp,
     uint32_t &lo,
     uint32_t &hi
 ) {
-    lo = reverse_bytes_uint32(static_cast<uint32_t>(timestamp & 0xFFFFFFFFULL));
-    hi = reverse_bytes_uint32(static_cast<uint32_t>((timestamp >> 32) & 0xFFFFFFFFULL));
+    lo = reverseBytesUInt32(static_cast<uint32_t>(timestamp & 0xFFFFFFFFULL));
+    hi = reverseBytesUInt32(static_cast<uint32_t>((timestamp >> 32) & 0xFFFFFFFFULL));
 }
 
-uint32_t NikonPairingEngine::reverse_bytes_uint32(const uint32_t value) {
+uint32_t NikonPairingEngine::reverseBytesUInt32(const uint32_t value) {
     return ((value & 0x000000FFU) << 24) |
            ((value & 0x0000FF00U) << 8) |
            ((value & 0x00FF0000U) >> 8) |

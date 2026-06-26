@@ -2,7 +2,7 @@
 
 #include "PairingMessage.h"
 
-void test_encode_decode_round_trip() {
+void testEncodeDecodeRoundTrip() {
     PairingMessage original(
         0x03,
         0x123456789ABCDEF0ULL,
@@ -40,7 +40,7 @@ void test_encode_decode_round_trip() {
 void setup() {
     delay(2000);
     UNITY_BEGIN();
-    RUN_TEST(test_encode_decode_round_trip);
+    RUN_TEST(testEncodeDecodeRoundTrip);
     UNITY_END();
 }
 
@@ -51,7 +51,7 @@ void loop() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_encode_decode_round_trip);
+    RUN_TEST(testEncodeDecodeRoundTrip);
     UNITY_END();
 
     return 0;
