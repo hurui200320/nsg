@@ -17,29 +17,34 @@ void drawCentered(const String& text, int y, int textSize = 2, uint32_t color = 
 }
 
 BootModeEnum detectBootMode() {
-    const unsigned long WAIT_MS = 3000;
-    const unsigned long REFRESH_MS = 50;
+    const unsigned long WAIT_MS = 5000;
+    const unsigned long THRESHOLD_MS = 2500;
+    const unsigned long REFRESH_MS = 30;
 
     unsigned long startMs = millis();
-    bool touched = false;
+    unsigned long touched = 0;
 
     // draw text
     M5.Display.fillScreen(TFT_BLACK);
-    drawCentered("Touch screen to enter", M5.Display.height() / 2 - 30, 2);
-    drawCentered("Pairing Mode", M5.Display.height() / 2 - 5, 3, TFT_YELLOW);
+    drawCentered("Press screen for 3s", M5.Display.height() / 2 - 45, 2);
+    drawCentered("to enter", M5.Display.height() / 2 - 20, 2);
+    drawCentered("Pairing Mode", M5.Display.height() / 2 + 5, 3, TFT_YELLOW);
 
     while (millis() - startMs < WAIT_MS) {
         M5.update();
 
         // any touch will be considered valid
         if (M5.Touch.getCount() > 0) {
-            touched = true;
-            break;
+            touched += REFRESH_MS;
+            if (touched >= THRESHOLD_MS) break;
+        } else {
+            touched = 0;
         }
 
         // show counter
         int remaining = (WAIT_MS - (millis() - startMs) + 999) / 1000;
-        M5.Display.fillRect(0, M5.Display.height() / 2 + 30, M5.Display.width(), 40, TFT_BLACK);
+        // This will cause flickering
+        // M5.Display.fillRect(0, M5.Display.height() / 2 + 30, M5.Display.width(), 40, TFT_BLACK);
         drawCentered(String("Auto normal in ") + remaining + "s", M5.Display.height() / 2 + 50, 2, TFT_LIGHTGREY);
 
         delay(REFRESH_MS);
@@ -47,10 +52,12 @@ BootModeEnum detectBootMode() {
 
     // show result
     M5.Display.fillScreen(TFT_BLACK);
-    if (touched) {
+    if (touched >= THRESHOLD_MS) {
+        Logging::info("DetectBootMode", "Booting into pairing mode...");
         drawCentered("Pairing Mode", M5.Display.height() / 2, 3, TFT_GREEN);
         return BootModeEnum::PAIRING;
     } else {
+        Logging::info("DetectBootMode", "Booting into normal mode...");
         drawCentered("Normal Mode", M5.Display.height() / 2, 3, TFT_CYAN);
         return BootModeEnum::NORMAL;
     }
@@ -86,13 +93,11 @@ void setup() {
 
     switch (bootModeType) {
         case BootModeEnum::NORMAL:
-            Logging::info("MainSetup", "Booting into normal mode...");
             normalMode = new NormalMode();
             normalMode->setup();
             break;
 
         case BootModeEnum::PAIRING:
-            Logging::info("MainSetup", "Booting into pairing mode...");
             pairingMode = new PairingMode();
             pairingMode->setup();
             break;
@@ -104,7 +109,6 @@ void setup() {
 }
 
 void loop() {
-    Logging::debug("MainLoop", "========== Loop started ==========");
     switch (bootModeType) {
         case BootModeEnum::NORMAL:
             if (normalMode) {
@@ -126,5 +130,4 @@ void loop() {
             Logging::fatal("MainLoop", "Unexpected boot type");
             break;
     }
-    Logging::debug("MainLoop", "========== Loop ended ==========");
 }
