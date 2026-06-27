@@ -8,8 +8,7 @@
 
 void BootMode::initBLE() {
     auto id = Config::getOrGenerateId();
-    auto idStr = Utils::uint32ToLittleEndianHexString(id);
-    auto bleDeviceName = "nsg-" + idStr;
+    auto bleDeviceName = Utils::generateFullId(id);
     Logging::info("BootMode::initBLE", "BLE device name: " + bleDeviceName);
     // enable BLE
     BLEDevice::init(bleDeviceName);

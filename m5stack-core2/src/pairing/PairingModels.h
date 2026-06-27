@@ -2,11 +2,12 @@
 #define PAIRING_MODELS_H
 
 typedef struct {
-    // haven't seen any camera's name longer than 45 bytes
-    char name[46];
+    // haven't seen any camera's name longer than 32 bytes
+    char name[33];
     // 4b:f9:87:33:6f:dd, last is always '\0'
     char addr[18];
-} Camera;  // each struct is 64 bytes
+    esp_ble_addr_type_t addrType;
+} Camera; 
 
 
 #endif

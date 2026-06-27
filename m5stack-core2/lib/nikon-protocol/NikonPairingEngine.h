@@ -44,6 +44,9 @@ public:
      */
     void extractSerial(const PairingMessage &stage4, char *serial);
 
+    uint32_t generateDeviceId();
+    uint32_t generateNonce();
+
 private:
     RandomGenerator &randomGenerator;
     BlowfishHasher &hasher;
@@ -51,9 +54,6 @@ private:
     static constexpr size_t SALT_COUNT = 8;
 
     static const uint32_t SALTS[SALT_COUNT][2];
-
-    uint32_t generateDeviceId();
-    uint32_t generateNonce();
 
     int findSalt(const PairingMessage &stage1, const PairingMessage &stage2);
 

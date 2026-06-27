@@ -26,3 +26,8 @@ std::string Utils::uint32ToLittleEndianHexString(const uint32_t number) {
     uint32ToLittleEndian(number, arr);
     return hexStr(arr, 4);
 }
+
+std::string Utils::generateFullId(const uint32_t id) { 
+    auto idStr = Utils::uint32ToLittleEndianHexString(id);
+    return std::string("nsg-") + idStr;
+ }

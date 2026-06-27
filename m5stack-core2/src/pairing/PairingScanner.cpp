@@ -89,6 +89,7 @@ void PairingScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     size_t cameraAddrSize = sizeof(camera.addr) - 1;
     memcpy(camera.addr, deviceAddr.toString().c_str(), cameraAddrSize);
     camera.addr[cameraAddrSize] = 0;
+    camera.addrType = advertisedDevice.getAddressType();
 
     if (!xQueueSend(scanResultQueue, &camera, (TickType_t)0)) {
         Logging::warn("PairingBLE::processScanResult", "Queue full, cannot post new items");
