@@ -1,8 +1,10 @@
 #include "PairingMode.h"
 
 #include <Arduino.h>
-#include <M5Unified.h>
 #include <BluetoothSerial.h>
+#include <M5Unified.h>
+#include <esp_bt.h>
+#include <esp_idf_version.h>
 
 #include <cstring>
 #include <string>
@@ -14,6 +16,34 @@
 #include "PairingModels.h"
 #include "PairingScanner.h"
 #include "Utils.h"
+
+// =============================================================================
+// BTA_DmBond — initiate GAP-level SSP bonding without a profile connection.
+//
+// The Nikon camera exposes no classic BT profile servers (no SPP, A2DP, HFP).
+// It only accepts GAP-level bonding (like Android's BluetoothDevice.createBond()).
+// ESP-IDF has NO public API for this — esp_spp_connect / esp_a2d_source_connect
+// both require the remote to accept an L2CAP PSM, which the camera rejects
+// before the security check runs, so SSP never triggers.
+//
+// BTA_DmBond is an internal Bluedroid function that sends an LMP pairing
+// request directly at the ACL level, with no L2CAP/profile connection. It is
+// the function that ALL bonding goes through internally (every profile
+// connection calls it under the hood). It has been stable in Bluedroid for
+// 10+ years and is exported as a global symbol in libbt.a.
+//
+// If this symbol ever disappears in a future ESP-IDF version, the fix is to
+// find the new equivalent — look for "DmBond" or "SecBond" in libbt.a:
+//   nm <arduino-sdk>/tools/sdk/esp32/lib/libbt.a | grep -i bond
+//
+// Tested with: Arduino-ESP32 3.x (ESP-IDF 4.4), espressif32 @ 7.0.1
+// =============================================================================
+#if ESP_IDF_VERSION_MAJOR >= 4
+extern "C" void BTA_DmBond(uint8_t* bd_addr);
+#define NSG_HAS_BTA_DMBOND 1
+#else
+#error "BTA_DmBond not verified on ESP-IDF < 4; check libbt.a symbols"
+#endif
 
 PairingMode::PairingMode() {}
 
@@ -105,7 +135,9 @@ void PairingMode::loop() {
         serialBT.enableSSP();
         serialBT.onConfirmRequest(BTConfirmRequestCallback);
         serialBT.onAuthComplete(BTAuthCompleteCallback);
-        serialBT.begin("nsg", true);
+        // we must use SPP slave mode so camera will find our SPP profile
+        // otherwise camera will fail pairing
+        serialBT.begin("nsg", false);
         // scan for 10s
         Logging::info("loop", "Scanning classic BT...");
         auto pResults = serialBT.discover(10000);
@@ -113,8 +145,11 @@ void PairingMode::loop() {
             Logging::fatal("loop", "failed to discover classic bt devices");
         }
         BTAdvertisedDevice* pDevice = nullptr;
+        Logging::info("loop", "Camera name: " + cameraName);
         for (size_t i = 0; i < pResults->getCount(); i++) {
             auto device = pResults->getDevice(i);
+            if (!device->haveName()) continue;
+            Logging::info("loop", "find device: " + device->getName());
             if (cameraName == device->getName()) {
                 pDevice = device;
                 break;
@@ -125,23 +160,37 @@ void PairingMode::loop() {
         } else {
             Logging::info("loop", "Find camera " + pDevice->getName() + ", addr=" + pDevice->getAddress().toString().c_str());
         }
-        // resolve channel
-        auto channels = serialBT.getChannels(pDevice->getAddress());
-        int channel = 0;
-        if (channels.size() > 0) {
-            channel = channels.begin()->first;
-        }
-        // remove if already bonded
-        serialBT.unpairDevice(reinterpret_cast<uint8_t*>(pDevice->getAddress().getNative()));
-        // create bond
+
+        // Initiate GAP-level bonding directly via BTA_DmBond.
+        // This sends an LMP pairing request at the ACL level — equivalent to
+        // Android's BluetoothDevice.createBond(). No profile/L2CAP connection
+        // is needed. The camera's CoD is "imaging" (shows as printer/camera
+        // icon on Android); it serves no BT profiles, only GAP bonding.
+        Logging::info("loop", "Initiating GAP bonding via BTA_DmBond...");
+        uint8_t classicAddr[ESP_BD_ADDR_LEN];
+        memcpy(classicAddr, pDevice->getAddress().getNative(), ESP_BD_ADDR_LEN);
+        // BTA_DmBond will automatically handle re-pairing.
+        // the serialBt's unpair device is async and will break the BTA_DmBond
         confirmRequestDone = false;
-        if (!serialBT.connect(pDevice->getAddress(), channel, (ESP_SPP_SEC_ENCRYPT | ESP_SPP_SEC_AUTHENTICATE), ESP_SPP_ROLE_MASTER)) {
-            Logging::fatal("loop", "failed to pair classic BT");
+#if defined(NSG_HAS_BTA_DMBOND) && NSG_HAS_BTA_DMBOND
+        BTA_DmBond(classicAddr);
+#else
+        Logging::fatal("loop", "BTA_DmBond not available, cannot bond");
+#endif
+
+        unsigned long bondStart = millis();
+        while (!confirmRequestDone && millis() - bondStart < 30000) {
+            delay(100);
         }
-        while (!confirmRequestDone) {
-            delay(1000);
+
+        if (confirmRequestDone) {
+            // give camera sometime to make the connection
+            delay(10000);
+            Logging::info("loop", "Classic BT bond established");
+        } else {
+            Logging::error("loop", "Classic BT bonding timed out (30s)");
         }
-        serialBT.disconnect();
+
         serialBT.end();
 
         // stuck here
