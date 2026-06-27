@@ -63,16 +63,6 @@ BootModeEnum detectBootMode() {
     }
 }
 
-// setup common things for both boot mode
-void setupCommon() {
-    auto id = Config::getOrGenerateId();
-    auto idStr = Utils::uint32ToLittleEndianHexString(id);
-    auto bleDeviceName = "nsg-" + idStr;
-    Logging::info("SetupCommon", "BLE device name: " + bleDeviceName);
-    // enable BLE
-    BLEDevice::init(bleDeviceName);
-}
-
 BootModeEnum bootModeType = BootModeEnum::NORMAL;
 NormalMode* normalMode = nullptr;
 PairingMode* pairingMode = nullptr;
@@ -87,9 +77,6 @@ void setup() {
     // collect boot up mode
     Logging::debug("MainSetup", "Detecting boot mode...");
     bootModeType = detectBootMode();
-
-    // setup common stuff for both mode
-    setupCommon();
 
     switch (bootModeType) {
         case BootModeEnum::NORMAL:
