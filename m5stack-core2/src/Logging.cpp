@@ -4,25 +4,25 @@
 
 void Logging::debug(const std::string& logger, const std::string& msg) {
     if (NSG_LOG_LEVEL <= NSG_LOG_LEVEL_DEBUG) {
-        Serial.printf("[D] %s - %s\n", logger.c_str(), msg.c_str());
+        Serial.printf("[%lu][D] %s - %s\n", millis(), logger.c_str(), msg.c_str());
     }
 }
 
 void Logging::info(const std::string& logger, const std::string& msg) {
     if (NSG_LOG_LEVEL <= NSG_LOG_LEVEL_INFO) {
-        Serial.printf("[I] %s - %s\n", logger.c_str(), msg.c_str());
+        Serial.printf("[%lu][I] %s - %s\n", millis(), logger.c_str(), msg.c_str());
     }
 }
 
 void Logging::warn(const std::string& logger, const std::string& msg) {
     if (NSG_LOG_LEVEL <= NSG_LOG_LEVEL_WARN) {
-        Serial.printf("[W] %s - %s\n", logger.c_str(), msg.c_str());
+        Serial.printf("[%lu][W] %s - %s\n", millis(), logger.c_str(), msg.c_str());
     }
 }
 
 void Logging::error(const std::string& logger, const std::string& msg) {
     if (NSG_LOG_LEVEL <= NSG_LOG_LEVEL_ERROR) {
-        Serial.printf("[E] %s - %s\n", logger.c_str(), msg.c_str());
+        Serial.printf("[%lu][E] %s - %s\n", millis(), logger.c_str(), msg.c_str());
     }
 }
 

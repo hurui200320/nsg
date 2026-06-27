@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 class PairingMessage {
 public:
@@ -40,6 +41,8 @@ public:
     static PairingMessage decode(const uint8_t *data);
 
     bool operator==(const PairingMessage &other) const;
+
+    std::string toString() const;
 };
 
 #endif // PAIRING_MESSAGE_H

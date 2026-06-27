@@ -3,11 +3,10 @@
 #include <tuple>
 
 PairingMessage::PairingMessage(
-    uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce
-) : stage(stage), timestamp(timestamp), device(device), nonce(nonce) {
+    uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce) : stage(stage), timestamp(timestamp), device(device), nonce(nonce) {
 }
 
-void PairingMessage::encode(uint8_t *buffer) const {
+void PairingMessage::encode(uint8_t* buffer) const {
     buffer[0] = stage;
 
     buffer[1] = static_cast<uint8_t>(timestamp & 0xFF);
@@ -30,35 +29,44 @@ void PairingMessage::encode(uint8_t *buffer) const {
     buffer[16] = static_cast<uint8_t>((nonce >> 24) & 0xFF);
 }
 
-PairingMessage PairingMessage::decode(const uint8_t *data) {
+PairingMessage PairingMessage::decode(const uint8_t* data) {
     uint8_t stage = data[0];
 
     uint64_t timestamp =
-            (static_cast<uint64_t>(data[1])) |
-            (static_cast<uint64_t>(data[2]) << 8) |
-            (static_cast<uint64_t>(data[3]) << 16) |
-            (static_cast<uint64_t>(data[4]) << 24) |
-            (static_cast<uint64_t>(data[5]) << 32) |
-            (static_cast<uint64_t>(data[6]) << 40) |
-            (static_cast<uint64_t>(data[7]) << 48) |
-            (static_cast<uint64_t>(data[8]) << 56);
+        (static_cast<uint64_t>(data[1])) |
+        (static_cast<uint64_t>(data[2]) << 8) |
+        (static_cast<uint64_t>(data[3]) << 16) |
+        (static_cast<uint64_t>(data[4]) << 24) |
+        (static_cast<uint64_t>(data[5]) << 32) |
+        (static_cast<uint64_t>(data[6]) << 40) |
+        (static_cast<uint64_t>(data[7]) << 48) |
+        (static_cast<uint64_t>(data[8]) << 56);
 
     uint32_t device =
-            (static_cast<uint32_t>(data[9])) |
-            (static_cast<uint32_t>(data[10]) << 8) |
-            (static_cast<uint32_t>(data[11]) << 16) |
-            (static_cast<uint32_t>(data[12]) << 24);
+        (static_cast<uint32_t>(data[9])) |
+        (static_cast<uint32_t>(data[10]) << 8) |
+        (static_cast<uint32_t>(data[11]) << 16) |
+        (static_cast<uint32_t>(data[12]) << 24);
 
     uint32_t nonce =
-            (static_cast<uint32_t>(data[13])) |
-            (static_cast<uint32_t>(data[14]) << 8) |
-            (static_cast<uint32_t>(data[15]) << 16) |
-            (static_cast<uint32_t>(data[16]) << 24);
+        (static_cast<uint32_t>(data[13])) |
+        (static_cast<uint32_t>(data[14]) << 8) |
+        (static_cast<uint32_t>(data[15]) << 16) |
+        (static_cast<uint32_t>(data[16]) << 24);
 
     return PairingMessage(stage, timestamp, device, nonce);
 }
 
-bool PairingMessage::operator==(const PairingMessage &other) const {
+bool PairingMessage::operator==(const PairingMessage& other) const {
     return std::tie(stage, timestamp, device, nonce) ==
            std::tie(other.stage, other.timestamp, other.device, other.nonce);
+}
+
+std::string PairingMessage::toString() const {
+    return std::string("PairingMessage[") +
+           "stage=" + std::to_string(stage) +
+           ", timestamp=" + std::to_string(timestamp) +
+           ", device=" + std::to_string(device) +
+           ", nonce=" + std::to_string(nonce) +
+           "]";
 }

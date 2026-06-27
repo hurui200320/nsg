@@ -7,10 +7,16 @@ enum class BootModeEnum {
 };
 
 class BootMode {
-public:
+   public:
     virtual ~BootMode() = default;
     virtual void setup() = 0;
     virtual void loop() = 0;
+
+   protected:
+    /**
+     * Init BLE with proper device name.
+     */
+    void initBLE();
 };
 
-#endif // BOOT_MODE_H
+#endif  // BOOT_MODE_H
