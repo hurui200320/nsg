@@ -74,6 +74,15 @@ void setup() {
     // Initialize M5 for screen, etc.
     M5.begin();
     Logging::debug("MainSetup", "M5 initialized");
+
+    if (!M5.Rtc.isEnabled()) {
+        Logging::fatal("MainSetup", "RTC not found, waiting...");
+    }
+
+    if (!M5.Rtc.begin()) {
+        Logging::error("MainSetup", "failed to initialize RTC");
+    }
+
     // collect boot up mode
     Logging::debug("MainSetup", "Detecting boot mode...");
     bootModeType = detectBootMode();

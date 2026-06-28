@@ -7,38 +7,32 @@
 #include <string>
 #include <vector>
 
-#include "../common/NikonBLEClient.h"
 #include "ClassicBT.h"
 #include "Config.h"
 #include "Logging.h"
-#include "PairingModels.h"
-#include "PairingScanner.h"
 #include "Utils.h"
+#include "../common/ScannedCamera.h"
 
-PairingMode::PairingMode() {}
+PairingMode::PairingMode(): scanner(nullptr), pClient(nullptr) {}
 
-PairingScanner* scanner;
 
 void PairingMode::setup() {
     BootMode::initBLE();
 
     scanner = new PairingScanner();
     scanner->startScanning();
-    // turn off backlight since we don't need screen for now
-    M5.Display.setBrightness(0);
 }
 
-std::vector<Camera> cameraList;
+// TODO: clean up these
+std::vector<ScannedCamera> cameraList;
 bool selectedCamera = false;
 size_t selectedCameraIdx = 0;
 
-NikonBLEClient* pClient;
-
 void PairingMode::loop() {
-    Camera camera;
+    ScannedCamera camera;
     while (xQueueReceive(scanner->scanResultQueue, &camera, (TickType_t)0)) {
         auto deviceName = std::string(camera.name);
-        auto deviceAddr = std::string(camera.addr);
+        auto deviceAddr = BLEAddress(camera.addr);
         bool dup = false;
         for (size_t i = 0; i < cameraList.size(); i++) {
             auto item = cameraList[i];
@@ -49,7 +43,7 @@ void PairingMode::loop() {
         }
         if (!dup) {
             cameraList.push_back(camera);
-            Logging::info("BLEScanCallback", "Found " + deviceName + ", addr=" + deviceAddr);
+            Logging::info("BLEScanCallback", "Found " + deviceName + ", addr=" + deviceAddr.toString());
         }
     }
 
@@ -68,7 +62,7 @@ void PairingMode::loop() {
     if (selectedCamera) {
         camera = cameraList[selectedCameraIdx];
         auto cameraName = std::string(camera.name);
-        auto cameraAddr = BLEAddress(std::string(camera.addr));
+        auto cameraAddr = BLEAddress(camera.addr);
         // perform BLE handshake
         pClient = new NikonBLEClient();
         if (!pClient->doHandshake(cameraAddr, camera.addrType)) {

@@ -1,42 +1,44 @@
-#include "PairingScanner.h"
+#include "PairedScanner.h"
 
 #include <stdint.h>
 
 #include "Logging.h"
 #include "NikonUUID.h"
 
-PairingScanner::PairingScanner() {
-    pBLEScan = BLEDevice::getScan();
+PairedScanner::PairedScanner() {
     // 10 cameras in pairing mode at the same time is kinda crazy
     scanResultQueue = xQueueCreate(10, sizeof(ScannedCamera));
 }
 
-void PairingScanner::startScanning() {
+bool PairedScanner::startScanning() {
+    // setup BLE
+    pBLEScan = BLEDevice::getScan();
     // use self as callbacks, want duplicates since we need to check manufacturer data
     pBLEScan->setAdvertisedDeviceCallbacks(this, true, true);
-    // use more power, but actively asking devices, faster
+    // Need active scan since it's too slow
     pBLEScan->setActiveScan(true);
     // scan interval in MS
     pBLEScan->setInterval(100);
-    // window for active scan, in MS
     pBLEScan->setWindow(90);
 
-    Logging::info("PairingScanner::startScanning", "start scanning...");
+    Logging::info("PairedScanner::startScanning", "start scanning...");
     // false to clear result, otherwise if camera's manufacturer data update,
     // callback will be skipped
     // this will basically scans forever
-    if (!pBLEScan->start(UINT32_MAX, nullptr, false)) {
-        Logging::fatal("PairingScanner::startScanning", "failed to start BLE scanning");
-    }
+    return pBLEScan->start(UINT32_MAX, nullptr, false);
 }
 
-void PairingScanner::stopScanning() {
+void PairedScanner::stopScanning() {
     pBLEScan->setAdvertisedDeviceCallbacks(nullptr, false, true);
     pBLEScan->stop();
-    Logging::info("PairingScanner::stopScanning", "scanning stopped");
+    Logging::info("PairedScanner::stopScanning", "scanning stopped");
 }
 
-void PairingScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
+// Note: we never stop scanning
+
+void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
+    // TODO: dedup with PairingScanner?
+
     // Nikon device name will have false length,
     // for example: length()=25 but only have 13 chars, the rest will be 0
     // this will cause any string concatnated after the name being truncated
@@ -63,26 +65,31 @@ void PairingScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
 
     // First two bytes of manufacture data, parse in LE
     uint16_t manufacturerDataKey = 0;
+    uint32_t device = 0;
     if (advertisedDevice.haveManufacturerData()) {
         auto strManufacturerData = advertisedDevice.getManufacturerData();
-        if (strManufacturerData.length() >= 2) {
+        if (strManufacturerData.length() >= 6) {
             auto bytes = reinterpret_cast<const uint8_t*>(strManufacturerData.c_str());
             manufacturerDataKey = bytes[0] | bytes[1] << 8;
+            device = bytes[2] | bytes[3] << 8 | bytes[4] << 16 | bytes[5] << 24;
         }
     }
-    // camera already paired
-    if (manufacturerDataKey == 0x0399) return;
+    // camera not paired
+    if (manufacturerDataKey != 0x0399) return;
+
+    Logging::debug("PairedScanner::onResult", "found paired device " + deviceName + ", addr=" + deviceAddr.toString());
 
     // create a queue message
     ScannedCamera camera;
-    fillScannedCamera(&camera, deviceName, deviceAddr, advertisedDevice.getAddressType());
+    fillScannedCamera(&camera, deviceName, device, deviceAddr, advertisedDevice.getAddressType());
 
     if (!xQueueSend(scanResultQueue, &camera, (TickType_t)0)) {
-        Logging::warn("PairingBLE::processScanResult", "Queue full, cannot post new items");
+        Logging::warn("PairedScanner::onResult", "Queue full, discarding new items");
     }
 }
 
-void PairingScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, BLEAddress deviceAddr, esp_ble_addr_type_t addrType) {
+void PairedScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, uint32_t device, BLEAddress deviceAddr,
+                                      esp_ble_addr_type_t addrType) {
     // copy name
     size_t cameraNameSize = 0;
     if (deviceName.length() >= sizeof(result->name) - 1) {
@@ -97,6 +104,5 @@ void PairingScanner::fillScannedCamera(ScannedCamera* result, std::string device
     memcpy(result->addr, deviceAddr.getNative(), ESP_BD_ADDR_LEN);
     // set addrType and device
     result->addrType = addrType;
-    // pairing mode has no manufacturer data
-    result->device = 0;
+    result->device = device;
 }

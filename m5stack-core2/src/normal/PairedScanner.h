@@ -1,14 +1,16 @@
-#ifndef PAIRING_SCANNER_H
-#define PAIRING_SCANNER_H
+#ifndef PAIRED_SCANNER_H
+#define PAIRED_SCANNER_H
 
 #include <BLEDevice.h>
 #include "../common/ScannedCamera.h"
+#include<string>
 
-class PairingScanner : public BLEAdvertisedDeviceCallbacks {
+class PairedScanner : public BLEAdvertisedDeviceCallbacks {
    public:
-    PairingScanner();
-    void startScanning();
+    PairedScanner();
+    bool startScanning();
     void stopScanning();
+    
     // read/receive Camera value from here
     QueueHandle_t scanResultQueue;
 
@@ -17,7 +19,7 @@ class PairingScanner : public BLEAdvertisedDeviceCallbacks {
     // callback
     void onResult(BLEAdvertisedDevice advertisedDevice) override;
     // fill a ScannedCamera object
-    void fillScannedCamera(ScannedCamera* result, std::string deviceName, BLEAddress deviceAddr, esp_ble_addr_type_t addrType);
-};
+    void fillScannedCamera(ScannedCamera* result, std::string deviceName, uint32_t device, BLEAddress deviceAddr, esp_ble_addr_type_t addrType);
+}; 
 
 #endif
