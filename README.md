@@ -30,4 +30,4 @@ TODO: make it more robus? Like auto-reconnect when camera wakes up from idle. Al
 
 The current plan is to use an M5Stack Core2 as the dedicated hardware. The original M5StackS3/CoreS3 idea was ruled out because the ESP32-S3 only supports BLE and does not have Bluetooth Classic, which the Nikon smart-device protocol requires for bonding. The Core2 uses the original ESP32, which has both BLE and Bluetooth Classic.
 
-Moved from PlatformIO to ESP-IDF because what we have in pio is too old. I need the latest arduino-esp32.
+Moved from PlatformIO to [pioarduino](https://github.com/pioarduino/platform-espressif32) because platformio sucks. They stay at old version of arduino-esp32. The pioarduino fixed this.
