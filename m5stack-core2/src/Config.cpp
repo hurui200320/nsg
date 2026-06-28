@@ -45,7 +45,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     JsonDocument doc;
     auto error = deserializeJson(doc, json);
     if (error) {
-        Logging::fatal("Config::getSavedCameras", std::string("Failed to parse Json, error: ") + error.c_str());
+        Logging::fatal("Config::getSavedCameras", "Failed to parse Json, error: " + String(error.c_str()));
     }
 
     std::vector<SavedCameraInfo> result;

@@ -46,28 +46,28 @@ NikonBLEClient::~NikonBLEClient() {
     }
 }
 
-void handshakeLoggingDebug(BLEAddress address, std::string msg) { Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), msg); }
-void handshakeLoggingInfo(BLEAddress address, std::string msg) { Logging::info("NikonBLEClient::doHandshake/" + address.toString(), msg); }
-void handshakeLoggingWarn(BLEAddress address, std::string msg) { Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), msg); }
-void handshakeLoggingError(BLEAddress address, std::string msg) { Logging::error("NikonBLEClient::doHandshake/" + address.toString(), msg); }
+void handshakeLoggingDebug(BLEAddress address, const std::string& msg) { Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
+void handshakeLoggingInfo(BLEAddress address, const std::string& msg) { Logging::info("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
+void handshakeLoggingWarn(BLEAddress address, const std::string& msg) { Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
+void handshakeLoggingError(BLEAddress address, const std::string& msg) { Logging::error("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
 
-bool NikonBLEClient::doHandshake(BLEAddress address, const esp_ble_addr_type_t addrType) {
+bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     if (!pClient) {
         handshakeLoggingError(address, "BLEClient is nullptr");
         return false;
     }
     if (pClient->isConnected()) {
         auto addr = pClient->getPeerAddress();
-        handshakeLoggingError(address, "BLEClient is already connect to " + addr.toString());
+        handshakeLoggingError(address, "BLEClient is already connect to " + std::string(addr.toString().c_str()));
         return false;
     }
 
-    handshakeLoggingDebug(address, "Connecting to " + address.toString() + "...");
+    handshakeLoggingDebug(address, "Connecting to " + std::string(address.toString().c_str()) + "...");
     if (!pClient->connect(address, addrType)) {
         handshakeLoggingError(address, "Failed to connect");
         return false;
     }
-    handshakeLoggingInfo(address, "Connected to " + address.toString());
+    handshakeLoggingInfo(address, "Connected to " + std::string(address.toString().c_str()));
 
     // request MTU, 517 bytes is the max
     if (!pClient->setMTU(517)) {

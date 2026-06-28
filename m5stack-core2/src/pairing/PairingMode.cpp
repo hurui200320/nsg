@@ -43,7 +43,7 @@ void PairingMode::loop() {
         }
         if (!dup) {
             cameraList.push_back(camera);
-            Logging::info("BLEScanCallback", "Found " + deviceName + ", addr=" + deviceAddr.toString());
+            Logging::info("BLEScanCallback", "Found " + String(deviceName.c_str()) + ", addr=" + deviceAddr.toString());
         }
     }
 
@@ -55,7 +55,7 @@ void PairingMode::loop() {
         scanner->stopScanning();
         selectedCameraIdx = 0;
         selectedCamera = true;
-        Logging::info("PairingMode::loop", "Pairing with " + std::string(cameraList[selectedCameraIdx].name));
+        Logging::info("PairingMode::loop", String("Pairing with ") + cameraList[selectedCameraIdx].name);
     }
 
     // TODO: need to ensure only execute once
@@ -78,7 +78,7 @@ void PairingMode::loop() {
         auto classicBT = new ClassicBT(cameraName);
         if (classicBT->searchAndInitiatePair()) {
             auto code = classicBT->getPairCode();
-            Logging::info("PairingMode::bondClassic", "Pair code: " + std::to_string(code));
+            Logging::info("PairingMode::bondClassic", "Pair code: " + String(code));
             // TODO: show code on screen and let user confirm
             if (classicBT->confirmPairCode(true)) {
                 Logging::info("PairingMode::bondClassic", "Classic BT bond established");

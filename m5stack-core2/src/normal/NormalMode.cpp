@@ -1,5 +1,7 @@
 #include "NormalMode.h"
 
+#include <M5Unified.h>
+
 #include <vector>
 
 #include "../common/NikonBLEClient.h"
@@ -31,6 +33,7 @@ void NormalMode::loop() {
     while (xQueueReceive(scanner->scanResultQueue, &scanned, (TickType_t)0)) {
         // search for connected, if it is advertising, then it's disconnected
         // we need to (re)initialize the BLE client
+        // TODO: how do we know the max number of BLE connection?
         for (auto& item : connectedCameras) {
             if (item.info.bleName == scanned.name && item.info.device == scanned.device) {
                 if (item.pClient != nullptr && !item.pClient->isConnnected()) {
@@ -63,9 +66,9 @@ void NormalMode::loop() {
         if (item.pClient == nullptr) continue;
         if (!item.pClient->isConnnected()) continue;
         // TODO: send time and geo
-        auto dateTime = M5.Rtc.getDateTime();
-        sprintf( dateTime.date.year, dateTime.date.month, dateTime.date.date, dateTime.date.weekDay,
-                dateTime.time.hours, dateTime.time.minutes, dateTime.time.seconds);
+        // auto dateTime = M5.Rtc.getDateTime();
+        // sprintf(dateTime.date.year, dateTime.date.month, dateTime.date.date, dateTime.date.weekDay, dateTime.time.hours, dateTime.time.minutes,
+                // dateTime.time.seconds);
     }
 
     // TODO: RTC?

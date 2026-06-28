@@ -11,7 +11,7 @@ typedef struct {
     char name[33];
     // native addr for BLEAddress
     esp_bd_addr_t addr;
-    esp_ble_addr_type_t addrType;
+    uint8_t addrType;
     // device from manufacturer data, 0 if no such data
     uint32_t device;
 } ScannedCamera; 

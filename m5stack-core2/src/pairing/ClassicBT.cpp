@@ -45,7 +45,7 @@ ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(
         pairCode = numVal;
         char buffer[10];
         sprintf(buffer, "%06lu", numVal);
-        Logging::info("ClassicBT", std::string("The pairing PIN is: ") + buffer);
+        Logging::info("ClassicBT", String("The pairing PIN is: ") + buffer);
         pairCodeReady = true;
     });
     serialBT.onAuthComplete([this](boolean success) {
@@ -81,7 +81,7 @@ bool ClassicBT::searchAndInitiatePair() {
         }
     }
 
-    Logging::info("ClassicBT::searchAndInitiatePair", "Find camera " + pDevice->getName() + ", addr=" + pDevice->getAddress().toString().c_str());
+    Logging::info("ClassicBT::searchAndInitiatePair", "Find camera " + String(pDevice->getName().c_str()) + ", addr=" + pDevice->getAddress().toString().c_str());
 
     Logging::info("ClassicBT::searchAndInitiatePair", "Initiating GAP bonding via BTA_DmBond...");
     uint8_t classicAddr[ESP_BD_ADDR_LEN];

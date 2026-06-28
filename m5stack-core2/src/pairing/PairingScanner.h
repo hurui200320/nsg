@@ -17,7 +17,7 @@ class PairingScanner : public BLEAdvertisedDeviceCallbacks {
     // callback
     void onResult(BLEAdvertisedDevice advertisedDevice) override;
     // fill a ScannedCamera object
-    void fillScannedCamera(ScannedCamera* result, std::string deviceName, BLEAddress deviceAddr, esp_ble_addr_type_t addrType);
+    void fillScannedCamera(ScannedCamera* result, std::string deviceName, BLEAddress deviceAddr, uint8_t addrType);
 };
 
 #endif

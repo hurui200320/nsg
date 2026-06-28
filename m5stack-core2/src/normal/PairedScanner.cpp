@@ -77,7 +77,7 @@ void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     // camera not paired
     if (manufacturerDataKey != 0x0399) return;
 
-    Logging::debug("PairedScanner::onResult", "found paired device " + deviceName + ", addr=" + deviceAddr.toString());
+    Logging::debug("PairedScanner::onResult", "found paired device " + String(deviceName.c_str()) + ", addr=" + deviceAddr.toString());
 
     // create a queue message
     ScannedCamera camera;
@@ -88,8 +88,7 @@ void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     }
 }
 
-void PairedScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, uint32_t device, BLEAddress deviceAddr,
-                                      esp_ble_addr_type_t addrType) {
+void PairedScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, uint32_t device, BLEAddress deviceAddr, uint8_t addrType) {
     // copy name
     size_t cameraNameSize = 0;
     if (deviceName.length() >= sizeof(result->name) - 1) {

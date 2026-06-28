@@ -82,7 +82,7 @@ void PairingScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     }
 }
 
-void PairingScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, BLEAddress deviceAddr, esp_ble_addr_type_t addrType) {
+void PairingScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, BLEAddress deviceAddr, uint8_t addrType) {
     // copy name
     size_t cameraNameSize = 0;
     if (deviceName.length() >= sizeof(result->name) - 1) {
