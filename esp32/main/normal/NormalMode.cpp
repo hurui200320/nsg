@@ -1,6 +1,7 @@
 #include "NormalMode.h"
 
 #include <vector>
+#include <M5Unified.h>
 
 #include "../common/NikonBLEClient.h"
 #include "Config.h"

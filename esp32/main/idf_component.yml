@@ -1,0 +1,11 @@
+dependencies:
+  # M5Stack Core2 board support
+  # commented out since it's purely for ESP-IDF calls, not arduino-esp32
+  # at least according to LLM
+#  espressif/m5stack_core_2: "^3.0.1"
+  # Arduino-ESP32
+  espressif/arduino-esp32: "^3.3.10"
+  # M5Unified
+  m5stack/m5unified: "^0.2.17"
+  # ArduinoJson
+  bblanchon/ArduinoJson: "^7.4.3"
