@@ -1,6 +1,7 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
+#include <Arduino.h>
 #include <HardwareSerial.h>
 
 #include <string>
@@ -20,15 +21,15 @@ namespace Logging {
 #define NSG_LOG_LEVEL 1
 #endif
 
-void debug(const std::string& logger, const std::string& msg);
-void info(const std::string& logger, const std::string& msg);
-void warn(const std::string& logger, const std::string& msg);
-void error(const std::string& logger, const std::string& msg);
+void debug(const String& logger, const String& msg);
+void info(const String& logger, const String& msg);
+void warn(const String& logger, const String& msg);
+void error(const String& logger, const String& msg);
 
 /**
  * Special helper, loop forever and print error message every second.
  */
-[[noreturn]] void fatal(const std::string& logger, const std::string& msg);
+[[noreturn]] void fatal(const String& logger, const String& msg);
 
 }  // namespace Logging
 

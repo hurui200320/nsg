@@ -31,7 +31,7 @@ size_t selectedCameraIdx = 0;
 void PairingMode::loop() {
     ScannedCamera camera;
     while (xQueueReceive(scanner->scanResultQueue, &camera, (TickType_t)0)) {
-        auto deviceName = std::string(camera.name);
+        auto deviceName = String(camera.name);
         auto deviceAddr = BLEAddress(camera.addr);
         bool dup = false;
         for (size_t i = 0; i < cameraList.size(); i++) {
@@ -55,13 +55,13 @@ void PairingMode::loop() {
         scanner->stopScanning();
         selectedCameraIdx = 0;
         selectedCamera = true;
-        Logging::info("PairingMode::loop", "Pairing with " + std::string(cameraList[selectedCameraIdx].name));
+        Logging::info("PairingMode::loop", String("Pairing with ") + cameraList[selectedCameraIdx].name);
     }
 
     // TODO: need to ensure only execute once
     if (selectedCamera) {
         camera = cameraList[selectedCameraIdx];
-        auto cameraName = std::string(camera.name);
+        auto cameraName = String(camera.name);
         auto cameraAddr = BLEAddress(camera.addr);
         // perform BLE handshake
         pClient = new NikonBLEClient();
@@ -78,7 +78,7 @@ void PairingMode::loop() {
         auto classicBT = new ClassicBT(cameraName);
         if (classicBT->searchAndInitiatePair()) {
             auto code = classicBT->getPairCode();
-            Logging::info("PairingMode::bondClassic", "Pair code: " + std::to_string(code));
+            Logging::info("PairingMode::bondClassic", "Pair code: " + String(code));
             // TODO: show code on screen and let user confirm
             if (classicBT->confirmPairCode(true)) {
                 Logging::info("PairingMode::bondClassic", "Classic BT bond established");

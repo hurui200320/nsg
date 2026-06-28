@@ -1,31 +1,30 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <stdint.h>
+#include <Arduino.h>
 #include <ArduinoJson.h>
-#include <string>
 #include <vector>
 
 class SavedCameraInfo {
-   public:
-    SavedCameraInfo(std::string bleName, uint32_t device, uint32_t nonce);
-    std::string bleName;
+public:
+    SavedCameraInfo(String bleName, uint32_t device, uint32_t nonce);
+
+    String bleName;
     uint32_t device;
     uint32_t nonce;
-    void addToJsonArray(JsonDocument& parent);
+
+    void addToJsonArray(JsonDocument &parent);
 };
 
 namespace Config {
+    /**
+     * Get the persisted device ID, generating and saving one if it does not exist.
+     */
+    uint32_t getOrGenerateId();
 
-/**
- * Get the persisted device ID, generating and saving one if it does not exist.
- */
-uint32_t getOrGenerateId();
+    std::vector<SavedCameraInfo> getSavedCameras();
 
-std::vector<SavedCameraInfo> getSavedCameras();
-
-void addToSavedCameras(SavedCameraInfo cameraInfo);
-
-}  // namespace Config
+    void addToSavedCameras(SavedCameraInfo cameraInfo);
+} // namespace Config
 
 #endif  // CONFIG_H

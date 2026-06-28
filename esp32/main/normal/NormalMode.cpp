@@ -64,9 +64,9 @@ void NormalMode::loop() {
         if (item.pClient == nullptr) continue;
         if (!item.pClient->isConnnected()) continue;
         // TODO: send time and geo
-        auto dateTime = M5.Rtc.getDateTime();
-        sprintf( dateTime.date.year, dateTime.date.month, dateTime.date.date, dateTime.date.weekDay,
-                dateTime.time.hours, dateTime.time.minutes, dateTime.time.seconds);
+        // auto dateTime = M5.Rtc.getDateTime();
+        // sprintf( dateTime.date.year, dateTime.date.month, dateTime.date.date, dateTime.date.weekDay,
+                // dateTime.time.hours, dateTime.time.minutes, dateTime.time.seconds);
     }
 
     // TODO: RTC?

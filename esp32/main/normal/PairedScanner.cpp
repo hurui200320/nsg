@@ -43,7 +43,7 @@ void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     // for example: length()=25 but only have 13 chars, the rest will be 0
     // this will cause any string concatnated after the name being truncated
     // thus we need to clean it by deepcopy the true string into a new string obj
-    auto deviceName = std::string(advertisedDevice.getName().c_str());
+    auto deviceName = String(advertisedDevice.getName().c_str());
 
     // missing device name
     if (deviceName.length() <= 4) return;
@@ -88,8 +88,8 @@ void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     }
 }
 
-void PairedScanner::fillScannedCamera(ScannedCamera* result, std::string deviceName, uint32_t device, BLEAddress deviceAddr,
-                                      esp_ble_addr_type_t addrType) {
+void PairedScanner::fillScannedCamera(ScannedCamera* result, String deviceName, uint32_t device, BLEAddress deviceAddr,
+                                      uint8_t addrType) {
     // copy name
     size_t cameraNameSize = 0;
     if (deviceName.length() >= sizeof(result->name) - 1) {

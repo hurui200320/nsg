@@ -3,11 +3,9 @@
 
 #include <BluetoothSerial.h>
 
-#include <string>
-
 class ClassicBT {
    public:
-    ClassicBT(std::string name);
+    ClassicBT(String name);
     ~ClassicBT();
     // return true -> start pairing, need to check and confirm code.
     // return false -> failed
@@ -19,8 +17,8 @@ class ClassicBT {
 
    private:
     BluetoothSerial serialBT;
+    String targetName;
     uint32_t pairCode;
-    std::string targetName;
     bool pairCodeReady = false;
     bool authDone = false;
     bool authSuccess = false;

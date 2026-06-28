@@ -6,7 +6,7 @@
 #include "Esp32RandomGenerator.h"
 #include "Logging.h"
 
-SavedCameraInfo::SavedCameraInfo(std::string bleName, uint32_t device, uint32_t nonce) : bleName(bleName), device(device), nonce(nonce) {}
+SavedCameraInfo::SavedCameraInfo(String bleName, uint32_t device, uint32_t nonce) : bleName(bleName), device(device), nonce(nonce) {}
 
 void SavedCameraInfo::addToJsonArray(JsonDocument& parent) {
     auto doc = parent.add<JsonObject>();
@@ -45,7 +45,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     JsonDocument doc;
     auto error = deserializeJson(doc, json);
     if (error) {
-        Logging::fatal("Config::getSavedCameras", std::string("Failed to parse Json, error: ") + error.c_str());
+        Logging::fatal("Config::getSavedCameras", String("Failed to parse Json, error: ") + error.c_str());
     }
 
     std::vector<SavedCameraInfo> result;
@@ -54,7 +54,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     result.reserve(jsonArr.size() + 1);
 
     for (JsonObject item : jsonArr) {
-        std::string bleName = item["bleName"];
+        String bleName = item["bleName"];
         uint32_t device = item["device"];
         uint32_t nonce = item["nonce"];
         SavedCameraInfo obj(bleName, device, nonce);
@@ -90,7 +90,7 @@ void Config::addToSavedCameras(SavedCameraInfo cameraInfo) {
         camera.addToJsonArray(doc);
     }
 
-    std::string json;
+    String json;
     serializeJson(doc, json);
 
     Preferences nvs;

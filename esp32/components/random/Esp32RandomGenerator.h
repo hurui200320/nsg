@@ -10,7 +10,6 @@
 #ifndef ESP32_RANDOM_GENERATOR_H
 #define ESP32_RANDOM_GENERATOR_H
 
-#ifdef ESP32
 
 #include "RandomGenerator.h"
 
@@ -19,7 +18,5 @@ public:
     uint32_t nextUInt32() override;
     uint64_t nextUInt64() override;
 };
-
-#endif // ESP32
 
 #endif // ESP32_RANDOM_GENERATOR_H

@@ -46,12 +46,12 @@ NikonBLEClient::~NikonBLEClient() {
     }
 }
 
-void handshakeLoggingDebug(BLEAddress address, std::string msg) { Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), msg); }
-void handshakeLoggingInfo(BLEAddress address, std::string msg) { Logging::info("NikonBLEClient::doHandshake/" + address.toString(), msg); }
-void handshakeLoggingWarn(BLEAddress address, std::string msg) { Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), msg); }
-void handshakeLoggingError(BLEAddress address, std::string msg) { Logging::error("NikonBLEClient::doHandshake/" + address.toString(), msg); }
+void handshakeLoggingDebug(BLEAddress address, String msg) { Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), msg); }
+void handshakeLoggingInfo(BLEAddress address, String msg) { Logging::info("NikonBLEClient::doHandshake/" + address.toString(), msg); }
+void handshakeLoggingWarn(BLEAddress address, String msg) { Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), msg); }
+void handshakeLoggingError(BLEAddress address, String msg) { Logging::error("NikonBLEClient::doHandshake/" + address.toString(), msg); }
 
-bool NikonBLEClient::doHandshake(BLEAddress address, const esp_ble_addr_type_t addrType) {
+bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     if (!pClient) {
         handshakeLoggingError(address, "BLEClient is nullptr");
         return false;
@@ -94,15 +94,15 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const esp_ble_addr_type_t a
     stage1Message = engine.createStage1(&device, &nonce);
     uint8_t stage1bytes[PairingMessage::SIZE];
     stage1Message.encode(stage1bytes);
-    handshakeLoggingInfo(address, "Sending stage 1 message: " + stage1Message.toString());
+    handshakeLoggingInfo(address, "Sending stage 1 message: " + String(stage1Message.toString().c_str()));
     pairChar->writeValue(stage1bytes, PairingMessage::SIZE, true);
-    handshakeLoggingInfo(address, "Sent stage 1 message: " + Utils::hexStr(stage1bytes, PairingMessage::SIZE));
+    handshakeLoggingInfo(address, "Sent stage 1 message: " + String(Utils::hexStr(stage1bytes, PairingMessage::SIZE).c_str()));
 
     handshakeLoggingDebug(address, "Reading stage 2 message...");
     auto stage2str = pairChar->readValue();
-    handshakeLoggingInfo(address, "Received stage 2 message: " + std::to_string(stage2str.length()));
+    handshakeLoggingInfo(address, "Received stage 2 message: " + String(stage2str.length()));
     stage2Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage2str.c_str()));
-    handshakeLoggingInfo(address, "Decoded stage 2 message: " + stage2Message.toString());
+    handshakeLoggingInfo(address, "Decoded stage 2 message: " + String(stage2Message.toString().c_str()));
 
     stage3Message = engine.verifyStage2AndBuildStage3(stage1Message, stage2Message);
     if (stage3Message.stage == 0) {
@@ -111,15 +111,15 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const esp_ble_addr_type_t a
     }
     uint8_t stage3bytes[PairingMessage::SIZE];
     stage3Message.encode(stage3bytes);
-    handshakeLoggingInfo(address, "Sending stage 3 message: " + stage3Message.toString());
+    handshakeLoggingInfo(address, "Sending stage 3 message: " + String(stage3Message.toString().c_str()));
     pairChar->writeValue(stage3bytes, PairingMessage::SIZE, true);
-    handshakeLoggingInfo(address, "Sent stage 3 message: " + Utils::hexStr(stage3bytes, PairingMessage::SIZE));
+    handshakeLoggingInfo(address, "Sent stage 3 message: " + String(Utils::hexStr(stage3bytes, PairingMessage::SIZE).c_str()));
 
     handshakeLoggingInfo(address, "Reading stage 4 message...");
     auto stage4str = pairChar->readValue();
-    handshakeLoggingInfo(address, "Received stage 4 message: " + std::to_string(stage4str.length()));
+    handshakeLoggingInfo(address, "Received stage 4 message: " + String(stage4str.length()));
     stage4Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage4str.c_str()));
-    handshakeLoggingInfo(address, "Decoded stage 4 message: " + stage4Message.toString());
+    handshakeLoggingInfo(address, "Decoded stage 4 message: " + String(stage4Message.toString().c_str()));
 
     // writing controller name
     handshakeLoggingDebug(address, "Writing controller name characteristic...");
@@ -136,9 +136,9 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const esp_ble_addr_type_t a
         return false;
     }
     memcpy(idPadded, idStr.c_str(), idStr.length());
-    handshakeLoggingDebug(address, "Writing controller name: " + idStr);
+    handshakeLoggingDebug(address, "Writing controller name: " + String(idStr.c_str()));
     idChar->writeValue(idPadded, sizeof(idPadded), true);
-    handshakeLoggingInfo(address, "Controller name written: " + Utils::hexStr(idPadded, sizeof(idPadded)));
+    handshakeLoggingInfo(address, "Controller name written: " + String(Utils::hexStr(idPadded, sizeof(idPadded)).c_str()));
 
     handshakeLoggingInfo(address, "handshake complete");
     // Done. At this point:
