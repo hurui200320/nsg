@@ -58,6 +58,16 @@ void NormalMode::loop() {
         }
     }
     // TODO: loop through clients, update them
+    for (auto& item : connectedCameras) {
+        if (millis() - item.lastBroadcastMillis < 15000) continue;
+        if (item.pClient == nullptr) continue;
+        if (!item.pClient->isConnnected()) continue;
+        // TODO: send time and geo
+        auto dateTime = M5.Rtc.getDateTime();
+        sprintf( dateTime.date.year, dateTime.date.month, dateTime.date.date, dateTime.date.weekDay,
+                dateTime.time.hours, dateTime.time.minutes, dateTime.time.seconds);
+    }
+
     // TODO: RTC?
 
     // if scan stopped, resume scan
