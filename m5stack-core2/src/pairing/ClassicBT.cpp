@@ -83,7 +83,7 @@ bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
     }
 
     if (!pDevice) {
-        Logging::warn("ClassicBT::searchAndInitiatePair", "Timeout on searching for " + String(pDevice->getName().c_str()));
+        Logging::warn("ClassicBT::searchAndInitiatePair", "Timeout on searching for " + String(targetName.c_str()));
         return false;
     }
 

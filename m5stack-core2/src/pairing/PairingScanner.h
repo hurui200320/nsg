@@ -7,6 +7,7 @@
 class PairingScanner : public BLEAdvertisedDeviceCallbacks {
    public:
     PairingScanner();
+    ~PairingScanner();
     void startScanning();
     void stopScanning();
     // read/receive Camera value from here

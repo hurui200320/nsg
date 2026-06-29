@@ -11,6 +11,10 @@ PairingScanner::PairingScanner() {
     scanResultQueue = xQueueCreate(10, sizeof(ScannedCamera));
 }
 
+PairingScanner::~PairingScanner() {
+    vQueueDelete(scanResultQueue);
+}
+
 void PairingScanner::startScanning() {
     // use self as callbacks, want duplicates since we need to check manufacturer data
     pBLEScan->setAdvertisedDeviceCallbacks(this, true, true);

@@ -9,6 +9,9 @@ PairedScanner::PairedScanner() {
     // 10 cameras in pairing mode at the same time is kinda crazy
     scanResultQueue = xQueueCreate(10, sizeof(ScannedCamera));
 }
+PairedScanner::~PairedScanner() {
+    vQueueDelete(scanResultQueue);
+}
 
 bool PairedScanner::startScanning() {
     // setup BLE
@@ -71,7 +74,8 @@ void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
         if (strManufacturerData.length() >= 6) {
             auto bytes = reinterpret_cast<const uint8_t*>(strManufacturerData.c_str());
             manufacturerDataKey = bytes[0] | bytes[1] << 8;
-            device = bytes[2] | bytes[3] << 8 | bytes[4] << 16 | bytes[5] << 24;
+            device = static_cast<uint32_t>(bytes[2]) | static_cast<uint32_t>(bytes[3]) << 8 | static_cast<uint32_t>(bytes[4]) << 16 |
+                     static_cast<uint32_t>(bytes[5]) << 24;
         }
     }
     // camera not paired

@@ -8,6 +8,7 @@
 class PairedScanner : public BLEAdvertisedDeviceCallbacks {
    public:
     PairedScanner();
+    ~PairedScanner();
     bool startScanning();
     void stopScanning();
     

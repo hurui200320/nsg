@@ -112,6 +112,9 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     handshakeLoggingDebug(address, "Reading stage 2 message...");
     auto stage2str = pairChar->readValue();
     handshakeLoggingInfo(address, "Received stage 2 message: " + std::to_string(stage2str.length()));
+    if (stage2str.length() < PairingMessage::SIZE) {
+        return false;
+    }
     stage2Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage2str.c_str()));
     handshakeLoggingInfo(address, "Decoded stage 2 message: " + stage2Message.toString());
 
@@ -129,6 +132,9 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     handshakeLoggingInfo(address, "Reading stage 4 message...");
     auto stage4str = pairChar->readValue();
     handshakeLoggingInfo(address, "Received stage 4 message: " + std::to_string(stage4str.length()));
+    if (stage4str.length() < PairingMessage::SIZE) {
+        return false;
+    }
     stage4Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage4str.c_str()));
     handshakeLoggingInfo(address, "Decoded stage 4 message: " + stage4Message.toString());
 

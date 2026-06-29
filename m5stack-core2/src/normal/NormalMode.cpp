@@ -25,6 +25,9 @@ void NormalMode::setup() {
     if (!scanner->startScanning()) {
         Logging::fatal("NormalSetup", "failed to start BLE scanning");
     }
+
+    // currently do not need screen
+    M5.Display.setBrightness(0);
 }
 
 void NormalMode::loop() {

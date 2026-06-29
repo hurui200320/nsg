@@ -21,9 +21,10 @@ class ClassicBT {
     BluetoothSerial serialBT;
     uint32_t pairCode;
     std::string targetName;
-    bool pairCodeReady = false;
-    bool authDone = false;
-    bool authSuccess = false;
+    // these bool flags are shared with callbacks
+    volatile bool pairCodeReady = false;
+    volatile bool authDone = false;
+    volatile bool authSuccess = false;
 };
 
 #endif

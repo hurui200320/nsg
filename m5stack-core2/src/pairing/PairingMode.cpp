@@ -7,14 +7,13 @@
 #include <string>
 #include <vector>
 
+#include "../common/ScannedCamera.h"
 #include "ClassicBT.h"
 #include "Config.h"
 #include "Logging.h"
 #include "Utils.h"
-#include "../common/ScannedCamera.h"
 
-PairingMode::PairingMode(): scanner(nullptr), pClient(nullptr) {}
-
+PairingMode::PairingMode() : scanner(nullptr), pClient(nullptr) {}
 
 void PairingMode::setup() {
     BootMode::initBLE();
@@ -83,6 +82,10 @@ void PairingMode::loop() {
             // TODO: show code on screen and let user confirm
             if (classicBT->confirmPairCode(true)) {
                 Logging::info("PairingMode::bondClassic", "Classic BT bond established");
+                // add the saved device into list
+                Logging::info("loop", "Saving paired camera info...");
+                SavedCameraInfo cameraInfo(String(cameraName.c_str()), pClient->getDevice(), pClient->getNonce());
+                Config::addToSavedCameras(cameraInfo);
             } else {
                 Logging::error("PairingMode::bondClassic", "failed to confirm pair code");
             }
@@ -91,12 +94,7 @@ void PairingMode::loop() {
         }
         delete classicBT;
         classicBT = nullptr;
-
-        // add the saved device into list
-        Logging::info("loop", "Saving paired camera info...");
-        SavedCameraInfo cameraInfo(String(cameraName.c_str()), pClient->getDevice(), pClient->getNonce());
-        Config::addToSavedCameras(cameraInfo);
-
+        // reboot anyway
         Logging::info("loop", "rebooting...");
         ESP.restart();
     }

@@ -7,6 +7,7 @@
 class ConnectedCamera {
    public:
     ConnectedCamera(SavedCameraInfo info);
+    ~ConnectedCamera();
     SavedCameraInfo info;
     NikonBLEClient* pClient;
     uint32_t lastBroadcastMillis;
