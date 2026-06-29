@@ -60,18 +60,35 @@ void NormalMode::loop() {
             }
         }
     }
+
     // TODO: loop through clients, update them
+    TimeMessage timeMessage(0, 0, 0, 0, 0, 0, 0, 0, 0);
     for (auto& item : connectedCameras) {
         if (millis() - item.lastBroadcastMillis < 15000) continue;
         if (item.pClient == nullptr) continue;
         if (!item.pClient->isConnnected()) continue;
-        // TODO: send time and geo
-        // auto dateTime = M5.Rtc.getDateTime();
-        // sprintf(dateTime.date.year, dateTime.date.month, dateTime.date.date, dateTime.date.weekDay, dateTime.time.hours, dateTime.time.minutes,
-                // dateTime.time.seconds);
-    }
+        // stop scanning to free up the attenna
+        if (!scanStopped) {
+            scanner->stopScanning();
+            scanStopped = true;
+        }
+        // Start sending payload
+        Logging::info("NormalLoop", "Sending TIME payload to " + item.info.bleName + "...");
+        updateTimeMessageWithRTC(timeMessage);
+        if (!item.pClient->sendTimePayload(timeMessage)) {
+            Logging::warn("NormalLoop", "Failed to send TIME payload to " + item.info.bleName);
+            item.pClient->disconnect();
+        }
+        Logging::info("NormalLoop", "Sending GEO payload to " + item.info.bleName + "...");
+        auto geoMessage = generateGeoMessage(0.0, 0.0, 1234, 10, 1);
+        if (!item.pClient->sendGeoPayload(geoMessage)) {
+            Logging::warn("NormalLoop", "Failed to send GEO payload to " + item.info.bleName);
+            item.pClient->disconnect();
+        }
 
-    // TODO: RTC?
+        // update broadcast time
+        item.lastBroadcastMillis = millis();
+    }
 
     // if scan stopped, resume scan
     if (scanStopped) {
@@ -80,4 +97,25 @@ void NormalMode::loop() {
             Logging::fatal("NormalSetup", "failed to start BLE scanning");
         }
     }
+}
+
+void NormalMode::updateTimeMessageWithRTC(TimeMessage& message) {
+    auto datetime = M5.Rtc.getDateTime();
+    // here is the UTC time
+    message.year = datetime.date.year;
+    message.month = datetime.date.month;
+    message.day = datetime.date.date;
+    message.hour = datetime.time.hours;
+    message.minute = datetime.time.minutes;
+    message.second = datetime.time.seconds;
+    // TODO: hardcoded timezone to UTC+8
+    message.dstOffset = 0;
+    message.tzOffsetHours = 8;
+    message.tzOffsetMinutes = 0;
+}
+
+GeoMessage NormalMode::generateGeoMessage(double lat, double lon, int32_t altitude, uint8_t satellites, uint8_t valid) {
+    auto datetime = M5.Rtc.getDateTime();
+    return GeoMessage::fromDecimal(lat, lon, altitude, satellites, datetime.date.year, datetime.date.month, datetime.date.date, datetime.time.hours,
+                                   datetime.time.minutes, datetime.time.seconds, 0, valid);
 }

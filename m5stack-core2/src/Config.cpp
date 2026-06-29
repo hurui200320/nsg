@@ -6,7 +6,7 @@
 #include "Esp32RandomGenerator.h"
 #include "Logging.h"
 
-SavedCameraInfo::SavedCameraInfo(std::string bleName, uint32_t device, uint32_t nonce) : bleName(bleName), device(device), nonce(nonce) {}
+SavedCameraInfo::SavedCameraInfo(String bleName, uint32_t device, uint32_t nonce) : bleName(bleName), device(device), nonce(nonce) {}
 
 void SavedCameraInfo::addToJsonArray(JsonDocument& parent) {
     auto doc = parent.add<JsonObject>();
@@ -34,9 +34,10 @@ uint32_t Config::getOrGenerateId() {
 
 std::vector<SavedCameraInfo> Config::getSavedCameras() {
     Preferences nvs;
-    // read-only
+    // read-only; if the namespace doesn't exist yet (first boot / NVS erased),
+    // there are simply no saved cameras — return empty list instead of crashing
     if (!nvs.begin("nsg", true)) {
-        Logging::fatal("Config::getSavedCameras", "Failed to open NVS");
+        return {};
     }
 
     auto json = nvs.getString("savedCameras", "[]");
@@ -54,7 +55,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     result.reserve(jsonArr.size() + 1);
 
     for (JsonObject item : jsonArr) {
-        std::string bleName = item["bleName"];
+        String bleName = item["bleName"];
         uint32_t device = item["device"];
         uint32_t nonce = item["nonce"];
         SavedCameraInfo obj(bleName, device, nonce);

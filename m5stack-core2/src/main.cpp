@@ -67,8 +67,6 @@ BootModeEnum bootModeType = BootModeEnum::NORMAL;
 NormalMode* normalMode = nullptr;
 PairingMode* pairingMode = nullptr;
 
-constexpr const char* const wd[7] = {"Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat"};
-
 void setup() {
     // enable default serial as monitor
     Serial.begin(115200);

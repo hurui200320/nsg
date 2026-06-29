@@ -8,8 +8,8 @@
 
 class SavedCameraInfo {
    public:
-    SavedCameraInfo(std::string bleName, uint32_t device, uint32_t nonce);
-    std::string bleName;
+    SavedCameraInfo(String bleName, uint32_t device, uint32_t nonce);
+    String bleName;
     uint32_t device;
     uint32_t nonce;
     void addToJsonArray(JsonDocument& parent);

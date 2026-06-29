@@ -93,7 +93,7 @@ void PairingMode::loop() {
 
         // add the saved device into list
         Logging::info("loop", "Saving paired camera info...");
-        SavedCameraInfo cameraInfo(cameraName, pClient->getDevice(), pClient->getNonce());
+        SavedCameraInfo cameraInfo(String(cameraName.c_str()), pClient->getDevice(), pClient->getNonce());
         Config::addToSavedCameras(cameraInfo);
 
         Logging::info("loop", "rebooting...");

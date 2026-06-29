@@ -15,7 +15,9 @@ NikonBLEClient::NikonBLEClient()
       stage2Message(0, 0, 0, 0),
       stage3Message(0, 0, 0, 0),
       stage4Message(0, 0, 0, 0),
-      nikonService(nullptr) {
+      nikonService(nullptr),
+      timeChar(nullptr),
+      geoChar(nullptr) {
     // generate device and nonce right now
     device = engine.generateDeviceId();
     nonce = engine.generateNonce();
@@ -32,24 +34,32 @@ NikonBLEClient::NikonBLEClient(const uint32_t savedDevice, const uint32_t savedN
       stage2Message(0, 0, 0, 0),
       stage3Message(0, 0, 0, 0),
       stage4Message(0, 0, 0, 0),
-      nikonService(nullptr) {
+      nikonService(nullptr),
+      timeChar(nullptr),
+      geoChar(nullptr) {
     pClient = BLEDevice::createClient();
 }
 
 NikonBLEClient::~NikonBLEClient() {
-    if (nikonService != nullptr) {
-        nikonService = nullptr;
-    }
+    disconnect();
     if (pClient != nullptr) {
         delete pClient;
         pClient = nullptr;
     }
 }
 
-void handshakeLoggingDebug(BLEAddress address, const std::string& msg) { Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
-void handshakeLoggingInfo(BLEAddress address, const std::string& msg) { Logging::info("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
-void handshakeLoggingWarn(BLEAddress address, const std::string& msg) { Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
-void handshakeLoggingError(BLEAddress address, const std::string& msg) { Logging::error("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str())); }
+void handshakeLoggingDebug(BLEAddress address, const std::string& msg) {
+    Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
+}
+void handshakeLoggingInfo(BLEAddress address, const std::string& msg) {
+    Logging::info("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
+}
+void handshakeLoggingWarn(BLEAddress address, const std::string& msg) {
+    Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
+}
+void handshakeLoggingError(BLEAddress address, const std::string& msg) {
+    Logging::error("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
+}
 
 bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     if (!pClient) {
@@ -63,7 +73,8 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     }
 
     handshakeLoggingDebug(address, "Connecting to " + std::string(address.toString().c_str()) + "...");
-    if (!pClient->connect(address, addrType)) {
+    // connect with timeout 45s, when camera goes to idle, it still broadcast, but takes longer to connect
+    if (!pClient->connect(address, addrType, 45000)) {
         handshakeLoggingError(address, "Failed to connect");
         return false;
     }
@@ -141,6 +152,11 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     handshakeLoggingInfo(address, "Controller name written: " + Utils::hexStr(idPadded, sizeof(idPadded)));
 
     handshakeLoggingInfo(address, "handshake complete");
+
+    // create timeChar and geoChar
+    timeChar = nikonService->getCharacteristic(NikonUUID::TIME_CHR);
+    geoChar = nikonService->getCharacteristic(NikonUUID::GEO_CHR);
+
     // Done. At this point:
     // + if new pair, the camera's classic BT should be broadcasting
     // + if reconnect, the camera should be ready for BLE communication
@@ -156,9 +172,9 @@ bool NikonBLEClient::isConnnected() {
 }
 
 void NikonBLEClient::disconnect() {
-    if (nikonService != nullptr) {
-        nikonService = nullptr;
-    }
+    timeChar = nullptr;
+    geoChar = nullptr;
+    nikonService = nullptr;
     if (pClient != nullptr && pClient->isConnected()) {
         pClient->disconnect();
     }
@@ -167,3 +183,27 @@ void NikonBLEClient::disconnect() {
 uint32_t NikonBLEClient::getDevice() { return device; }
 
 uint32_t NikonBLEClient::getNonce() { return nonce; }
+
+bool NikonBLEClient::sendTimePayload(TimeMessage& message) {
+    if (pClient == nullptr || !pClient->isConnected()) {
+        return false;
+    }
+    if (timeChar == nullptr) {
+        return false;
+    }
+    uint8_t buffer[TimeMessage::SIZE];
+    message.encode(buffer);
+    return timeChar->writeValue(buffer, TimeMessage::SIZE, true);
+}
+
+bool NikonBLEClient::sendGeoPayload(GeoMessage& message) {
+    if (pClient == nullptr || !pClient->isConnected()) {
+        return false;
+    }
+    if (geoChar == nullptr) {
+        return false;
+    }
+    uint8_t buffer[GeoMessage::SIZE];
+    message.encode(buffer);
+    return geoChar->writeValue(buffer, GeoMessage::SIZE, true);
+}

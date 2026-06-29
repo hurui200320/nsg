@@ -40,7 +40,7 @@ extern "C" void BTA_DmBond(uint8_t* bd_addr);
 
 ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(0) {
     Logging::debug("ClassicBT", "Initializing up classic BT");
-    serialBT.enableSSP();
+    serialBT.enableSSP(true, true);
     serialBT.onConfirmRequest([this](uint32_t numVal) {
         pairCode = numVal;
         char buffer[10];

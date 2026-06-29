@@ -6,8 +6,10 @@
 
 #include "BlowfishHasher.h"
 #include "Esp32RandomGenerator.h"
+#include "GeoMessage.h"
 #include "NikonPairingEngine.h"
 #include "PairingMessage.h"
+#include "TimeMessage.h"
 
 class NikonBLEClient {
    public:
@@ -22,6 +24,10 @@ class NikonBLEClient {
     uint32_t getDevice();
     uint32_t getNonce();
 
+    // send payload after handshake
+    bool sendTimePayload(TimeMessage& message);
+    bool sendGeoPayload(GeoMessage& message);
+
    private:
     Esp32RandomGenerator rnd;
     BlowfishHasher hasher;
@@ -35,6 +41,8 @@ class NikonBLEClient {
 
     BLEClient* pClient;
     BLERemoteService* nikonService;
+    BLERemoteCharacteristic* timeChar;
+    BLERemoteCharacteristic* geoChar;
 };
 
 #endif
