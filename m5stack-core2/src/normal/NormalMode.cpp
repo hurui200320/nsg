@@ -7,30 +7,30 @@
 #include "Logging.h"
 #include "PairedScanner.h"
 
-NormalMode::NormalMode() : scanner(nullptr), connectedCameras() {}
+NormalMode::NormalMode() : connectedCameras() {}
 
 NormalMode::~NormalMode() {
-    if (scanner != nullptr) {
+    if (scanner) {
         scanner->stopScanning();
-        delete scanner;
-        scanner = nullptr;
     }
 }
 
 void NormalMode::setup() {
     auto savedCameras = Config::getSavedCameras();
     connectedCameras.reserve(savedCameras.size());
-    for (const auto& saved: savedCameras) {
+    for (const auto& saved : savedCameras) {
         connectedCameras.emplace_back(saved);
     }
 
     BootMode::initBLE(rnd);
-    scanner = new PairedScanner();
+    scanner.reset(new PairedScanner());
     if (!scanner->startScanning()) {
         NSG_LOG_FATAL("NormalSetup", "failed to start BLE scanning");
     }
 
-    // currently do not need screen
+    // TODO: check RTC, if year < 2026, force waiting for GPS fix to update time
+
+    // TODO: currently do not need screen
     M5.Display.setBrightness(0);
 }
 
@@ -43,12 +43,12 @@ void NormalMode::loop() {
         // TODO: how do we know the max number of BLE connection?
         for (auto& item : connectedCameras) {
             if (item.info.bleName == scanned.name && item.info.device == scanned.device) {
-                if (item.pClient != nullptr && !item.pClient->isConnected()) {
+                if (item.pClient && !item.pClient->isConnected()) {
                     // disconnected, kill current client and restart
                     item.pClient->disconnect();
                     item.pClient.reset();
                 }
-                if (item.pClient == nullptr) {
+                if (!item.pClient) {
                     item.pClient.reset(new NikonBLEClient(rnd, item.info.device, item.info.nonce));
                     if (!scanStopped) {
                         // stop scanning to free up the attenna
@@ -58,6 +58,8 @@ void NormalMode::loop() {
                     auto bleAddr = BLEAddress(scanned.addr);
                     if (!item.pClient->doHandshake(bleAddr, scanned.addrType)) {
                         NSG_LOG_ERROR("NormalLoop", "Failed to reconnect to %s due to handshake failure", bleAddr.toString().c_str());
+                        // clean up stale client asap
+                        item.pClient.reset();
                     } else {
                         NSG_LOG_INFO("NormalLoop", "BLE connected to %s", bleAddr.toString().c_str());
                         item.lastBroadcastMillis = 0;
@@ -67,11 +69,11 @@ void NormalMode::loop() {
         }
     }
 
-    // TODO: loop through clients, update them
+    // loop through clients, send broadcast if interval is reached
     TimeMessage timeMessage(0, 0, 0, 0, 0, 0, 0, 0, 0);
     for (auto& item : connectedCameras) {
         if (millis() - item.lastBroadcastMillis < 15000) continue;
-        if (item.pClient == nullptr) continue;
+        if (!item.pClient) continue;
         if (!item.pClient->isConnected()) continue;
         // stop scanning to free up the attenna
         if (!scanStopped) {
@@ -115,7 +117,7 @@ void NormalMode::updateTimeMessageWithRTC(TimeMessage& message) {
     message.hour = datetime.time.hours;
     message.minute = datetime.time.minutes;
     message.second = datetime.time.seconds;
-    // TODO: hardcoded timezone to UTC+8
+    // TODO: hardcoded timezone to UTC+8, maybe using build arg and default to 8?
     message.dstOffset = 0;
     message.tzOffsetHours = 8;
     message.tzOffsetMinutes = 0;

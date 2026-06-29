@@ -9,7 +9,7 @@ namespace Utils {
 /**
  * Convert uint8 array into hex string.
  */
-std::string hexStr(const uint8_t* data, int len);
+std::string hexStr(const uint8_t* data, size_t len);
 
 /**
  * Convert a given uint32 number into 4 bytes little endian.

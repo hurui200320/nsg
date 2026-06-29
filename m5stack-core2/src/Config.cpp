@@ -69,6 +69,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     return result;
 }
 
+// TODO: limit the number of device?
 void Config::addToSavedCameras(const SavedCameraInfo& cameraInfo) {
     std::vector<SavedCameraInfo> cameras = getSavedCameras();
 

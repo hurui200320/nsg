@@ -5,7 +5,6 @@
 #include "BootMode.h"
 #include "Config.h"
 #include "Logging.h"
-#include "Utils.h"
 #include "normal/NormalMode.h"
 #include "pairing/PairingMode.h"
 

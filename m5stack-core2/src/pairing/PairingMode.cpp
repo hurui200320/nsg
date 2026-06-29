@@ -25,6 +25,13 @@ void PairingMode::setup() {
 }
 
 void PairingMode::loop() {
+    // TODO: Pairing mode should be 1 time use, so:
+    //       1. search and show on screen, waiting for user to select
+    //       2. after select perform BLE handshake
+    //       3. after BLE handshake, search and perform classic BT
+    //       4. show pairing code and wait for user to confirm
+    //       5. if success, save to NVS and reboot, 
+    //          otherwise stuck with error message on screen, user need to manually reset (or connect monitor to see the fatal message)
     switch (state) {
         case State::SCANNING:
             handleScanResults();

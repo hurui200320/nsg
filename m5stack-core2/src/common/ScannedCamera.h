@@ -3,9 +3,6 @@
 
 #include <BLEDevice.h>
 
-// TODO: add device (uint32_t), rename to ScannedCamera, move to common, should use by both peer
-// also add helper method to create and extra std::string from it.
-
 typedef struct {
     // haven't seen any camera's name longer than 32 bytes
     char name[33];

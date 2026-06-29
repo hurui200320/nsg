@@ -58,7 +58,7 @@ void Logging::error(const char* logger, const char* fmt, ...) {
     va_end(args);
 
     while (true) {
-        NSG_LOG_ERROR(logger, "%s", msg);
+        Serial.printf("[%lu][%c] %s - %s\n", millis(), 'E', logger, msg);
         delay(1000);
     }
 }

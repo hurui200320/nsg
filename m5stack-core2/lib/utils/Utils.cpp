@@ -1,17 +1,15 @@
 #include "Utils.h"
 
-#include <iomanip>
-#include <sstream>
 
-
-std::string Utils::hexStr(const uint8_t* data, int len) {
-    std::stringstream ss;
-    ss << std::hex;
-
-    for (int i(0); i < len; ++i)
-        ss << std::setw(2) << std::setfill('0') << (int)data[i];
-
-    return ss.str();
+std::string Utils::hexStr(const uint8_t* data, size_t len) {
+    std::string result;
+    result.reserve(len * 2);
+    static constexpr char hex[] = "0123456789abcdef";
+    for (size_t i = 0; i < len; ++i) {
+        result.push_back(hex[data[i] >> 4]);
+        result.push_back(hex[data[i] & 0x0F]);
+    }
+    return result;
 }
 
 void Utils::uint32ToLittleEndian(const uint32_t number, uint8_t* arr) {

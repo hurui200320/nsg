@@ -3,6 +3,7 @@
 
 #include <BLEClient.h>
 #include <inttypes.h>
+#include <memory>
 
 #include "BlowfishHasher.h"
 #include "GeoMessage.h"
@@ -13,9 +14,16 @@
 
 class NikonBLEClient {
    public:
-    NikonBLEClient(RandomGenerator& randomGenerator);
+    explicit NikonBLEClient(RandomGenerator& randomGenerator);
     NikonBLEClient(RandomGenerator& randomGenerator, const uint32_t savedDevice, const uint32_t savedNonce);
     ~NikonBLEClient();
+
+    // Non-copyable: the BLE client is a unique resource.
+    NikonBLEClient(const NikonBLEClient&) = delete;
+    NikonBLEClient& operator=(const NikonBLEClient&) = delete;
+    // Non-movable due to NikonPairingEngine's blowfish hash
+    NikonBLEClient(NikonBLEClient&&) = delete;
+    NikonBLEClient& operator=(NikonBLEClient&&) = delete;
 
     // return false means failed to handshake
     bool doHandshake(BLEAddress address, const uint8_t type);
@@ -39,7 +47,7 @@ class NikonBLEClient {
     PairingMessage stage3Message;
     PairingMessage stage4Message;
 
-    BLEClient* pClient;
+    std::unique_ptr<BLEClient> pClient;
     BLERemoteService* nikonService;
     BLERemoteCharacteristic* timeChar;
     BLERemoteCharacteristic* geoChar;

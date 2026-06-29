@@ -6,6 +6,8 @@
 #include "NikonUUID.h"
 
 PairedScanner::PairedScanner() {
+    // setup BLE
+    pBLEScan = BLEDevice::getScan();
     // 10 cameras in pairing mode at the same time is kinda crazy
     scanResultQueue = xQueueCreate(10, sizeof(ScannedCamera));
 }
@@ -15,8 +17,6 @@ PairedScanner::~PairedScanner() {
 }
 
 bool PairedScanner::startScanning() {
-    // setup BLE
-    pBLEScan = BLEDevice::getScan();
     // use self as callbacks, want duplicates since we need to check manufacturer data
     pBLEScan->setAdvertisedDeviceCallbacks(this, true, true);
     // Need active scan since it's too slow

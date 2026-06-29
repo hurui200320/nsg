@@ -7,6 +7,7 @@
 #include "GeoMessage.h"
 #include "PairedScanner.h"
 #include "TimeMessage.h"
+#include <memory>
 
 class NormalMode : public BootMode {
    public:
@@ -18,7 +19,7 @@ class NormalMode : public BootMode {
 
    private:
     Esp32RandomGenerator rnd;
-    PairedScanner* scanner;
+    std::unique_ptr<PairedScanner> scanner;
     std::vector<ConnectedCamera> connectedCameras;
     void updateTimeMessageWithRTC(TimeMessage& message);
     GeoMessage generateGeoMessage(double lat, double lon, int32_t altitude, uint8_t satellites, uint8_t valid);
