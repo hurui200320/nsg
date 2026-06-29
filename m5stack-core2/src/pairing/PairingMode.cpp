@@ -76,7 +76,8 @@ void PairingMode::loop() {
 
         // start classic BT pairing
         auto classicBT = new ClassicBT(cameraName);
-        if (classicBT->searchAndInitiatePair()) {
+        // TODO hardcoded to search for 1 minutes
+        if (classicBT->searchAndInitiatePair(60000)) {
             auto code = classicBT->getPairCode();
             Logging::info("PairingMode::bondClassic", "Pair code: " + String(code));
             // TODO: show code on screen and let user confirm

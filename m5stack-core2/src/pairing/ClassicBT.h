@@ -11,7 +11,7 @@ class ClassicBT {
     ~ClassicBT();
     // return true -> start pairing, need to check and confirm code.
     // return false -> failed
-    bool searchAndInitiatePair();
+    bool searchAndInitiatePair(uint32_t searchTimeoutMs);
     uint32_t getPairCode();
     // return true -> pair confirmed,
     // return false -> pair failed.

@@ -65,10 +65,11 @@ ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(
 
 ClassicBT::~ClassicBT() { serialBT.end(); }
 
-bool ClassicBT::searchAndInitiatePair() {
+bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
     Logging::info("ClassicBT::searchAndInitiatePair", "Scanning classic BT...");
     BTAdvertisedDevice* pDevice = nullptr;
-    while (!pDevice) {
+    uint32_t scanStartTime = millis();
+    while (!pDevice && millis() - scanStartTime < searchTimeoutMs) {
         // scan for 10s
         auto pResults = serialBT.discover(10000);
         for (size_t i = 0; i < pResults->getCount(); i++) {
@@ -79,6 +80,11 @@ bool ClassicBT::searchAndInitiatePair() {
                 break;
             }
         }
+    }
+
+    if (!pDevice) {
+        Logging::warn("ClassicBT::searchAndInitiatePair", "Timeout on searching for " + String(pDevice->getName().c_str()));
+        return false;
     }
 
     Logging::info("ClassicBT::searchAndInitiatePair", "Find camera " + String(pDevice->getName().c_str()) + ", addr=" + pDevice->getAddress().toString().c_str());
