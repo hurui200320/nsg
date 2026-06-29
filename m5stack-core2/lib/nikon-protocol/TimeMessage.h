@@ -44,16 +44,16 @@ public:
     );
 
     /**
-     * Encodes this message into the supplied 10-byte buffer.
-     * The caller must ensure [buffer] has room for at least [SIZE] bytes.
+     * Encodes this message into the supplied buffer.
+     * Returns true on success, false if [bufferSize] is too small.
      */
-    void encode(uint8_t *buffer) const;
+    bool encode(uint8_t *buffer, size_t bufferSize) const;
 
     /**
-     * Decodes a TimeMessage from a 10-byte buffer.
-     * The caller must ensure [data] has at least [SIZE] bytes.
+     * Decodes a TimeMessage from the supplied buffer.
+     * Returns a default (zeroed) message if [dataSize] is too small.
      */
-    static TimeMessage decode(const uint8_t *data);
+    static TimeMessage decode(const uint8_t *data, size_t dataSize);
 
     bool operator==(const TimeMessage &other) const;
 };

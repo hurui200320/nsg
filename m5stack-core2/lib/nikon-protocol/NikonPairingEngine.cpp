@@ -1,7 +1,5 @@
 #include "NikonPairingEngine.h"
 
-#include <cstring>
-
 const uint32_t NikonPairingEngine::SALTS[SALT_COUNT][2] = {
     {0x704066e4U, 0x0433d552U},
     {0xed4b8facU, 0x15f7e47bU},
@@ -32,6 +30,10 @@ PairingMessage NikonPairingEngine::verifyStage2AndBuildStage3(
     const PairingMessage &stage1,
     const PairingMessage &stage2
 ) {
+    if (stage1.stage != 0x01 || stage2.stage != 0x02) {
+        return PairingMessage(0x00, 0ULL, 0U, 0U);
+    }
+
     const int salt = findSalt(stage1, stage2);
     if (salt < 0) {
         // No matching salt found, return a zeroed message as a safe failure indicator
@@ -54,6 +56,9 @@ PairingMessage NikonPairingEngine::verifyStage2AndBuildStage3(
     };
 
     const BlowfishHasher::HashResult result = hasher.hash(blocks, 6);
+    if (!result.valid) {
+        return PairingMessage(0x00, 0ULL, 0U, 0U);
+    }
 
     return PairingMessage(
         0x03,
@@ -64,8 +69,13 @@ PairingMessage NikonPairingEngine::verifyStage2AndBuildStage3(
 }
 
 void NikonPairingEngine::extractSerial(const PairingMessage &stage4, char *serial) {
+    if (stage4.stage != 0x04) {
+        serial[0] = '\0';
+        return;
+    }
+
     uint8_t encoded[PairingMessage::SIZE];
-    stage4.encode(encoded);
+    stage4.encode(encoded, sizeof(encoded));
 
     for (size_t i = 0; i < 8; ++i) {
         serial[i] = static_cast<char>(encoded[i + 9]);
@@ -106,6 +116,9 @@ int NikonPairingEngine::findSalt(
         };
 
         const BlowfishHasher::HashResult result = hasher.hash(blocks, 6);
+        if (!result.valid) {
+            continue;
+        }
         if (result.left == camDeviceBe && result.right == camNonceBe) {
             return static_cast<int>(i);
         }

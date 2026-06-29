@@ -13,8 +13,8 @@ BlowfishHasher::HashResult BlowfishHasher::hash(const uint32_t *blocks, size_t c
     if (count % 2 != 0 || blocks == nullptr) {
         // Kotlin version throws IllegalArgumentException on odd counts.
         // Embedded builds typically run with exceptions disabled, so return
-        // zeros as a safe failure indicator.
-        return {0, 0};
+        // an explicitly invalid result.
+        return {0, 0, false};
     }
 
     uint32_t left = 0x01020304;
@@ -33,5 +33,5 @@ BlowfishHasher::HashResult BlowfishHasher::hash(const uint32_t *blocks, size_t c
         right = blk.lo;
     }
 
-    return {left, right};
+    return {left, right, true};
 }

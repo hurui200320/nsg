@@ -11,7 +11,7 @@ void testEncodeDecodeRoundTrip() {
     );
 
     uint8_t encoded[TimeMessage::SIZE];
-    original.encode(encoded);
+    original.encode(encoded, sizeof(encoded));
 
     TEST_ASSERT_EQUAL_UINT8(10, TimeMessage::SIZE);
 
@@ -22,7 +22,7 @@ void testEncodeDecodeRoundTrip() {
     };
     TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, encoded, TimeMessage::SIZE);
 
-    TimeMessage decoded = TimeMessage::decode(encoded);
+    TimeMessage decoded = TimeMessage::decode(encoded, sizeof(encoded));
     TEST_ASSERT_EQUAL_UINT16(original.year, decoded.year);
     TEST_ASSERT_EQUAL_UINT8(original.month, decoded.month);
     TEST_ASSERT_EQUAL_UINT8(original.day, decoded.day);

@@ -39,22 +39,22 @@
 extern "C" void BTA_DmBond(uint8_t* bd_addr);
 
 ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(0) {
-    Logging::debug("ClassicBT", "Initializing up classic BT");
+    NSG_LOG_DEBUG("ClassicBT", "Initializing up classic BT");
     serialBT.enableSSP(true, true);
     serialBT.onConfirmRequest([this](uint32_t numVal) {
         pairCode = numVal;
         char buffer[10];
         snprintf(buffer, sizeof(buffer), "%06u", numVal);
-        Logging::info("ClassicBT", String("The pairing PIN is: ") + buffer);
+        NSG_LOG_INFO("ClassicBT", "The pairing PIN is: %s", buffer);
         pairCodeReady = true;
     });
     serialBT.onAuthComplete([this](boolean success) {
         authDone = true;
         authSuccess = success;
         if (success) {
-            Logging::info("ClassicBT::onAuthComplete", "pairing success");
+            NSG_LOG_INFO("ClassicBT::onAuthComplete", "pairing success");
         } else {
-            Logging::error("ClassicBT::onAuthComplete", "pairing failed");
+            NSG_LOG_ERROR("ClassicBT::onAuthComplete", "pairing failed");
         }
     });
     // we must use SPP slave mode so camera will find our SPP profile
@@ -66,7 +66,7 @@ ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(
 ClassicBT::~ClassicBT() { serialBT.end(); }
 
 bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
-    Logging::info("ClassicBT::searchAndInitiatePair", "Scanning classic BT...");
+    NSG_LOG_INFO("ClassicBT::searchAndInitiatePair", "Scanning classic BT...");
     bool deviceFound = false;
     // the native BT addr for target device
     uint8_t classicAddr[ESP_BD_ADDR_LEN];
@@ -78,8 +78,10 @@ bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
             auto device = pResults->getDevice(i);
             if (!device->haveName()) continue;
             if (targetName == device->getName()) {
-                Logging::info("ClassicBT::searchAndInitiatePair",
-                              "Find camera " + String(targetName.c_str()) + ", addr=" + device->getAddress().toString().c_str());
+                NSG_LOG_INFO("ClassicBT::searchAndInitiatePair",
+                             "Find camera %s, addr=%s",
+                             targetName.c_str(),
+                             device->getAddress().toString().c_str());
                 memcpy(classicAddr, device->getAddress().getNative(), ESP_BD_ADDR_LEN);
                 deviceFound = true;
                 break;
@@ -89,11 +91,11 @@ bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
     }
 
     if (!deviceFound) {
-        Logging::warn("ClassicBT::searchAndInitiatePair", "Timeout on searching for " + String(targetName.c_str()));
+        NSG_LOG_WARN("ClassicBT::searchAndInitiatePair", "Timeout on searching for %s", targetName.c_str());
         return false;
     }
 
-    Logging::info("ClassicBT::searchAndInitiatePair", "Initiating GAP bonding via BTA_DmBond...");
+    NSG_LOG_INFO("ClassicBT::searchAndInitiatePair", "Initiating GAP bonding via BTA_DmBond...");
     pairCodeReady = false;
     authDone = false;
     authSuccess = false;
@@ -105,7 +107,7 @@ bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
     }
 
     if (!pairCodeReady) {
-        Logging::error("ClassicBT::searchAndInitiatePair", "Classic BT bonding timed out (30s)");
+        NSG_LOG_ERROR("ClassicBT::searchAndInitiatePair", "Classic BT bonding timed out (30s)");
         return false;
     }
 
@@ -117,7 +119,7 @@ uint32_t ClassicBT::getPairCode() { return pairCode; }
 bool ClassicBT::confirmPairCode(bool accept) {
     serialBT.confirmReply(accept);
     if (!accept) {
-        Logging::info("ClassicBT::confirmPairCode", "Pair code rejected by user");
+        NSG_LOG_INFO("ClassicBT::confirmPairCode", "Pair code rejected by user");
         return false;
     }
 
@@ -128,14 +130,14 @@ bool ClassicBT::confirmPairCode(bool accept) {
     }
 
     if (!authDone) {
-        Logging::error("ClassicBT::confirmPairCode", "Classic BT auth timed out (120s)");
+        NSG_LOG_ERROR("ClassicBT::confirmPairCode", "Classic BT auth timed out (120s)");
         return false;
     }
 
     if (authSuccess) {
         // give camera sometime to make the connection
         delay(10000);
-        Logging::info("ClassicBT::confirmPairCode", "Classic BT bond established");
+        NSG_LOG_INFO("ClassicBT::confirmPairCode", "Classic BT bond established");
     }
 
     return authSuccess;

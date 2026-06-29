@@ -29,16 +29,16 @@ public:
     PairingMessage(uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce);
 
     /**
-     * Encodes this message into the supplied 17-byte buffer.
-     * The caller must ensure [buffer] has room for at least [SIZE] bytes.
+     * Encodes this message into the supplied buffer.
+     * Returns true on success, false if [bufferSize] is too small.
      */
-    void encode(uint8_t *buffer) const;
+    bool encode(uint8_t *buffer, size_t bufferSize) const;
 
     /**
-     * Decodes a PairingMessage from a 17-byte buffer.
-     * The caller must ensure [data] has at least [SIZE] bytes.
+     * Decodes a PairingMessage from the supplied buffer.
+     * Returns a zeroed stage-0 message if [dataSize] is too small.
      */
-    static PairingMessage decode(const uint8_t *data);
+    static PairingMessage decode(const uint8_t *data, size_t dataSize);
 
     bool operator==(const PairingMessage &other) const;
 

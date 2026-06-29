@@ -7,8 +7,8 @@
 #include "NikonUUID.h"
 #include "Utils.h"
 
-NikonBLEClient::NikonBLEClient()
-    : rnd(),
+NikonBLEClient::NikonBLEClient(RandomGenerator& randomGenerator)
+    : rnd(randomGenerator),
       hasher(),
       engine(rnd, hasher),
       stage1Message(0, 0, 0, 0),
@@ -24,8 +24,8 @@ NikonBLEClient::NikonBLEClient()
     pClient = BLEDevice::createClient();
 }
 
-NikonBLEClient::NikonBLEClient(const uint32_t savedDevice, const uint32_t savedNonce)
-    : rnd(),
+NikonBLEClient::NikonBLEClient(RandomGenerator& randomGenerator, const uint32_t savedDevice, const uint32_t savedNonce)
+    : rnd(randomGenerator),
       hasher(),
       engine(rnd, hasher),
       device(savedDevice),
@@ -48,41 +48,28 @@ NikonBLEClient::~NikonBLEClient() {
     }
 }
 
-void handshakeLoggingDebug(BLEAddress address, const std::string& msg) {
-    Logging::debug("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
-}
-void handshakeLoggingInfo(BLEAddress address, const std::string& msg) {
-    Logging::info("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
-}
-void handshakeLoggingWarn(BLEAddress address, const std::string& msg) {
-    Logging::warn("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
-}
-void handshakeLoggingError(BLEAddress address, const std::string& msg) {
-    Logging::error("NikonBLEClient::doHandshake/" + address.toString(), String(msg.c_str()));
-}
-
 bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     if (!pClient) {
-        handshakeLoggingError(address, "BLEClient is nullptr");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] BLEClient is nullptr", address.toString().c_str());
         return false;
     }
     if (pClient->isConnected()) {
         auto addr = pClient->getPeerAddress();
-        handshakeLoggingError(address, "BLEClient is already connect to " + std::string(addr.toString().c_str()));
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] BLEClient is already connect to %s", address.toString().c_str(), addr.toString().c_str());
         return false;
     }
 
-    handshakeLoggingDebug(address, "Connecting to " + std::string(address.toString().c_str()) + "...");
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] BLE connecting...", address.toString().c_str());
     // connect with timeout 45s, when camera goes to idle, it still broadcast, but takes longer to connect
     if (!pClient->connect(address, addrType, 45000)) {
-        handshakeLoggingError(address, "Failed to connect");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] BLE failed to connect", address.toString().c_str());
         return false;
     }
-    handshakeLoggingInfo(address, "Connected to " + std::string(address.toString().c_str()));
+    NSG_LOG_INFO("NikonBLEClient::doHandshake", "[%s] BLE connected", address.toString().c_str());
 
     // request MTU, 517 bytes is the max
     if (!pClient->setMTU(517)) {
-        handshakeLoggingError(address, "Failed to set MTU");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to set MTU", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
@@ -90,7 +77,7 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     // create nikon service
     nikonService = pClient->getService(NikonUUID::SERVICE);
     if (nikonService == nullptr) {
-        handshakeLoggingError(address, "Failed to get Nikon Service");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to get Nikon Service", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
@@ -98,7 +85,7 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     // for PAIR, we don't register callback, we just read it.
     auto pairChar = nikonService->getCharacteristic(NikonUUID::PAIR_CHR);
     if (pairChar == nullptr) {
-        handshakeLoggingError(address, "Failed to get PAIR characteristic");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to get PAIR characteristic", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
@@ -107,78 +94,81 @@ bool NikonBLEClient::doHandshake(BLEAddress address, const uint8_t addrType) {
     // start doing handshake
     stage1Message = engine.createStage1(&device, &nonce);
     uint8_t stage1bytes[PairingMessage::SIZE];
-    stage1Message.encode(stage1bytes);
-    handshakeLoggingInfo(address, "Sending stage 1 message: " + stage1Message.toString());
+    stage1Message.encode(stage1bytes, sizeof(stage1bytes));
+    NSG_LOG_INFO("NikonBLEClient::doHandshake", "[%s] Sending stage 1 message: %s", address.toString().c_str(), stage1Message.toString().c_str());
     if (!pairChar->writeValue(stage1bytes, PairingMessage::SIZE, true)) {
-        handshakeLoggingError(address, "Failed to write stage 1 message");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to write stage 1 message", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
-    handshakeLoggingDebug(address, "Sent stage 1 message: " + Utils::hexStr(stage1bytes, PairingMessage::SIZE));
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Sent stage 1 message: %s", address.toString().c_str(),
+                  Utils::hexStr(stage1bytes, PairingMessage::SIZE).c_str());
 
-    handshakeLoggingDebug(address, "Reading stage 2 message...");
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Reading stage 2 message...", address.toString().c_str());
     auto stage2str = pairChar->readValue();
-    handshakeLoggingDebug(address, "Received stage 2 message: " + std::to_string(stage2str.length()));
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Received stage 2 message: %zu", address.toString().c_str(), stage2str.length());
     if (stage2str.length() < PairingMessage::SIZE) {
         pClient->disconnect();
         return false;
     }
-    stage2Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage2str.c_str()));
-    handshakeLoggingInfo(address, "Decoded stage 2 message: " + stage2Message.toString());
+    stage2Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage2str.c_str()), stage2str.length());
+    NSG_LOG_INFO("NikonBLEClient::doHandshake", "[%s] Decoded stage 2 message: %s", address.toString().c_str(), stage2Message.toString().c_str());
 
     stage3Message = engine.verifyStage2AndBuildStage3(stage1Message, stage2Message);
     if (stage3Message.stage == 0) {
-        handshakeLoggingError(address, "failed to create stage 3 message");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to create stage 3 message", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
     uint8_t stage3bytes[PairingMessage::SIZE];
-    stage3Message.encode(stage3bytes);
-    handshakeLoggingInfo(address, "Sending stage 3 message: " + stage3Message.toString());
+    stage3Message.encode(stage3bytes, sizeof(stage3bytes));
+    NSG_LOG_INFO("NikonBLEClient::doHandshake", "[%s] Sending stage 3 message: %s", address.toString().c_str(), stage3Message.toString().c_str());
     if (!pairChar->writeValue(stage3bytes, PairingMessage::SIZE, true)) {
-        handshakeLoggingError(address, "Failed to write stage 3 message");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to write stage 3 message", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
-    handshakeLoggingDebug(address, "Sent stage 3 message: " + Utils::hexStr(stage3bytes, PairingMessage::SIZE));
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Sent stage 3 message: %s", address.toString().c_str(),
+                  Utils::hexStr(stage3bytes, PairingMessage::SIZE).c_str());
 
-    handshakeLoggingInfo(address, "Reading stage 4 message...");
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Reading stage 4 message...", address.toString().c_str());
     auto stage4str = pairChar->readValue();
-    handshakeLoggingDebug(address, "Received stage 4 message: " + std::to_string(stage4str.length()));
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Received stage 4 message: %zu", address.toString().c_str(), stage4str.length());
     if (stage4str.length() < PairingMessage::SIZE) {
         pClient->disconnect();
         return false;
     }
-    stage4Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage4str.c_str()));
-    handshakeLoggingDebug(address, "Decoded stage 4 message: " + stage4Message.toString());
+    stage4Message = PairingMessage::decode(reinterpret_cast<const uint8_t*>(stage4str.c_str()), stage4str.length());
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Decoded stage 4 message: %s", address.toString().c_str(), stage4Message.toString().c_str());
 
     // writing controller name
-    handshakeLoggingInfo(address, "Writing controller name characteristic...");
+    NSG_LOG_INFO("NikonBLEClient::doHandshake", "[%s] Writing controller name characteristic...", address.toString().c_str());
     auto idChar = nikonService->getCharacteristic(NikonUUID::ID_CHR);
     if (idChar == nullptr) {
-        handshakeLoggingError(address, "Failed to get ID characteristic");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to get ID characteristic", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
     // max allowed lenght is 31
     uint8_t idPadded[32];
     memset(idPadded, 0, sizeof(idPadded));
-    auto idStr = Utils::generateFullId(Config::getOrGenerateId());
+    auto idStr = Utils::generateFullId(Config::getOrGenerateId(rnd));
     if (idStr.length() >= 32) {
-        handshakeLoggingError(address, "Device name length >= 32, too long");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Device name length >= 32, too long", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
     memcpy(idPadded, idStr.c_str(), idStr.length());
-    handshakeLoggingDebug(address, "Writing controller name: " + idStr);
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Writing controller name: %s", address.toString().c_str(), idStr.c_str());
     if (!idChar->writeValue(idPadded, sizeof(idPadded), true)) {
-        handshakeLoggingError(address, "Failed to write controller name");
+        NSG_LOG_ERROR("NikonBLEClient::doHandshake", "[%s] Failed to write controller name", address.toString().c_str());
         pClient->disconnect();
         return false;
     }
-    handshakeLoggingDebug(address, "Controller name written: " + Utils::hexStr(idPadded, sizeof(idPadded)));
+    NSG_LOG_DEBUG("NikonBLEClient::doHandshake", "[%s] Controller name written: %s", address.toString().c_str(),
+                  Utils::hexStr(idPadded, sizeof(idPadded)).c_str());
 
-    handshakeLoggingInfo(address, "handshake success and complete");
+    NSG_LOG_INFO("NikonBLEClient::doHandshake", "[%s] handshake success and complete", address.toString().c_str());
 
     // create timeChar and geoChar
     timeChar = nikonService->getCharacteristic(NikonUUID::TIME_CHR);
@@ -219,7 +209,9 @@ bool NikonBLEClient::sendTimePayload(TimeMessage& message) {
         return false;
     }
     uint8_t buffer[TimeMessage::SIZE];
-    message.encode(buffer);
+    if (!message.encode(buffer, sizeof(buffer))) {
+        return false;
+    }
     return timeChar->writeValue(buffer, TimeMessage::SIZE, true);
 }
 
@@ -231,6 +223,8 @@ bool NikonBLEClient::sendGeoPayload(GeoMessage& message) {
         return false;
     }
     uint8_t buffer[GeoMessage::SIZE];
-    message.encode(buffer);
+    if (!message.encode(buffer, sizeof(buffer))) {
+        return false;
+    }
     return geoChar->writeValue(buffer, GeoMessage::SIZE, true);
 }

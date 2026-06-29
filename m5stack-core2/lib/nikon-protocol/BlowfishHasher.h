@@ -31,6 +31,7 @@ public:
     struct HashResult {
         uint32_t left;
         uint32_t right;
+        bool valid;
     };
 
     BlowfishHasher();
@@ -39,7 +40,8 @@ public:
      * Hashes an array of 32-bit big-endian words.
      *
      * [blocks] must contain an even number of words.
-     * Returns the final (left, right) pair.
+     * Returns the final (left, right) pair with valid=true on success.
+     * If the input is invalid (odd word count or null pointer), valid=false.
      */
     HashResult hash(const uint32_t *blocks, size_t count);
 

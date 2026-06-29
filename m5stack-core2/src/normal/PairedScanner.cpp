@@ -25,7 +25,7 @@ bool PairedScanner::startScanning() {
     pBLEScan->setInterval(100);
     pBLEScan->setWindow(90);
 
-    Logging::info("PairedScanner::startScanning", "start scanning...");
+    NSG_LOG_INFO("PairedScanner::startScanning", "start scanning...");
     // false to clear result, otherwise if camera's manufacturer data update,
     // callback will be skipped
     // this will basically scans forever
@@ -35,7 +35,7 @@ bool PairedScanner::startScanning() {
 void PairedScanner::stopScanning() {
     pBLEScan->setAdvertisedDeviceCallbacks(nullptr, false, true);
     pBLEScan->stop();
-    Logging::info("PairedScanner::stopScanning", "scanning stopped");
+    NSG_LOG_INFO("PairedScanner::stopScanning", "scanning stopped");
 }
 
 // Note: we never stop scanning
@@ -82,14 +82,14 @@ void PairedScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     // camera not paired
     if (manufacturerDataKey != 0x0399) return;
 
-    Logging::debug("PairedScanner::onResult", "found paired device " + String(deviceName.c_str()) + ", addr=" + deviceAddr.toString());
+    NSG_LOG_DEBUG("PairedScanner::onResult", "found paired device %s, addr=%s", deviceName.c_str(), deviceAddr.toString().c_str());
 
     // create a queue message
     ScannedCamera camera;
     fillScannedCamera(&camera, deviceName, device, deviceAddr, advertisedDevice.getAddressType());
 
     if (!xQueueSend(scanResultQueue, &camera, (TickType_t)0)) {
-        Logging::warn("PairedScanner::onResult", "Queue full, discarding new items");
+        NSG_LOG_WARN("PairedScanner::onResult", "Queue full, discarding new items");
     }
 }
 

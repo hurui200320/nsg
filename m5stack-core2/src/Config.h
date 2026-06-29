@@ -12,19 +12,21 @@ class SavedCameraInfo {
     String bleName;
     uint32_t device;
     uint32_t nonce;
-    void addToJsonArray(JsonDocument& parent);
+    void addToJsonArray(JsonDocument& parent) const;
 };
+
+class RandomGenerator;
 
 namespace Config {
 
 /**
  * Get the persisted device ID, generating and saving one if it does not exist.
  */
-uint32_t getOrGenerateId();
+uint32_t getOrGenerateId(RandomGenerator& randomGenerator);
 
 std::vector<SavedCameraInfo> getSavedCameras();
 
-void addToSavedCameras(SavedCameraInfo cameraInfo);
+void addToSavedCameras(const SavedCameraInfo& cameraInfo);
 
 }  // namespace Config
 

@@ -1,21 +1,15 @@
 #include <unity.h>
 
 #include "BlowfishHasher.h"
+#include "FakeRandomGenerator.h"
 #include "NikonPairingEngine.h"
 #include "PairingMessage.h"
 
-#ifdef ESP32
-#include "Esp32RandomGenerator.h"
-#else
-#include "NativeRandomGenerator.h"
-#endif
-
-#ifdef ESP32
-static Esp32RandomGenerator randomGenerator;
-#else
-static NativeRandomGenerator randomGenerator;
-#endif
-
+static FakeRandomGenerator randomGenerator({
+    0x12345678U, 0x9ABCDEF0U,
+    0xAABBCCDDU, 0x11223344U,
+    0x55667788U, 0x99AABBCCU
+});
 static BlowfishHasher hasher;
 static NikonPairingEngine engine(randomGenerator, hasher);
 
@@ -60,7 +54,7 @@ void testCapturedStage2FindsSaltSixAndBuildsExpectedStage3() {
     TEST_ASSERT_EQUAL_UINT32(0x23838a35U, stage3.nonce);
 
     uint8_t encoded[PairingMessage::SIZE];
-    stage3.encode(encoded);
+    stage3.encode(encoded, sizeof(encoded));
 
     static const uint8_t expected[PairingMessage::SIZE] = {
         0x03,

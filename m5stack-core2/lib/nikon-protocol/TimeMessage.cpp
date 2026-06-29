@@ -11,7 +11,11 @@ TimeMessage::TimeMessage(
     dstOffset(dstOffset), tzOffsetHours(tzOffsetHours), tzOffsetMinutes(tzOffsetMinutes) {
 }
 
-void TimeMessage::encode(uint8_t *buffer) const {
+bool TimeMessage::encode(uint8_t *buffer, size_t bufferSize) const {
+    if (bufferSize < SIZE) {
+        return false;
+    }
+
     buffer[0] = static_cast<uint8_t>(year & 0xFF);
     buffer[1] = static_cast<uint8_t>((year >> 8) & 0xFF);
     buffer[2] = month;
@@ -23,9 +27,15 @@ void TimeMessage::encode(uint8_t *buffer) const {
     buffer[7] = static_cast<uint8_t>(dstOffset);
     buffer[8] = static_cast<uint8_t>(tzOffsetHours);
     buffer[9] = static_cast<uint8_t>(tzOffsetMinutes);
+
+    return true;
 }
 
-TimeMessage TimeMessage::decode(const uint8_t *data) {
+TimeMessage TimeMessage::decode(const uint8_t *data, size_t dataSize) {
+    if (dataSize < SIZE) {
+        return TimeMessage(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+
     uint16_t year =
             static_cast<uint16_t>(data[0]) |
             (static_cast<uint16_t>(data[1]) << 8);

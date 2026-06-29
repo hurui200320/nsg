@@ -2,8 +2,6 @@
 
 #include <M5Unified.h>
 
-#include <vector>
-
 #include "../common/NikonBLEClient.h"
 #include "Config.h"
 #include "Logging.h"
@@ -11,19 +9,25 @@
 
 NormalMode::NormalMode() : scanner(nullptr), connectedCameras() {}
 
+NormalMode::~NormalMode() {
+    if (scanner != nullptr) {
+        scanner->stopScanning();
+        delete scanner;
+        scanner = nullptr;
+    }
+}
+
 void NormalMode::setup() {
     auto savedCameras = Config::getSavedCameras();
     connectedCameras.reserve(savedCameras.size());
-    for (size_t i = 0; i < savedCameras.size(); i++) {
-        auto saved = savedCameras[i];
-        ConnectedCamera connected(saved);
-        connectedCameras.push_back(connected);
+    for (const auto& saved: savedCameras) {
+        connectedCameras.emplace_back(saved);
     }
 
-    BootMode::initBLE();
+    BootMode::initBLE(rnd);
     scanner = new PairedScanner();
     if (!scanner->startScanning()) {
-        Logging::fatal("NormalSetup", "failed to start BLE scanning");
+        NSG_LOG_FATAL("NormalSetup", "failed to start BLE scanning");
     }
 
     // currently do not need screen
@@ -42,11 +46,10 @@ void NormalMode::loop() {
                 if (item.pClient != nullptr && !item.pClient->isConnected()) {
                     // disconnected, kill current client and restart
                     item.pClient->disconnect();
-                    delete item.pClient;
-                    item.pClient = nullptr;
+                    item.pClient.reset();
                 }
                 if (item.pClient == nullptr) {
-                    item.pClient = new NikonBLEClient(item.info.device, item.info.nonce);
+                    item.pClient.reset(new NikonBLEClient(rnd, item.info.device, item.info.nonce));
                     if (!scanStopped) {
                         // stop scanning to free up the attenna
                         scanner->stopScanning();
@@ -54,9 +57,9 @@ void NormalMode::loop() {
                     }
                     auto bleAddr = BLEAddress(scanned.addr);
                     if (!item.pClient->doHandshake(bleAddr, scanned.addrType)) {
-                        Logging::error("NormalLoop", "Failed to reconnect to " + bleAddr.toString() + "due to handshake failure");
+                        NSG_LOG_ERROR("NormalLoop", "Failed to reconnect to %s due to handshake failure", bleAddr.toString().c_str());
                     } else {
-                        Logging::info("NormalLoop", "BLE connected to " + bleAddr.toString());
+                        NSG_LOG_INFO("NormalLoop", "BLE connected to %s", bleAddr.toString().c_str());
                         item.lastBroadcastMillis = 0;
                     }
                 }
@@ -76,17 +79,17 @@ void NormalMode::loop() {
             scanStopped = true;
         }
         // Start sending payload
-        Logging::info("NormalLoop", "Sending TIME payload to " + item.info.bleName + "...");
+        NSG_LOG_INFO("NormalLoop", "Sending TIME payload to %s...", item.info.bleName.c_str());
         updateTimeMessageWithRTC(timeMessage);
         if (!item.pClient->sendTimePayload(timeMessage)) {
-            Logging::warn("NormalLoop", "Failed to send TIME payload to " + item.info.bleName);
+            NSG_LOG_WARN("NormalLoop", "Failed to send TIME payload to %s", item.info.bleName.c_str());
             item.pClient->disconnect();
         }
-        Logging::info("NormalLoop", "Sending GEO payload to " + item.info.bleName + "...");
+        NSG_LOG_INFO("NormalLoop", "Sending GEO payload to %s...", item.info.bleName.c_str());
         // TODO: hook up GPS
         auto geoMessage = generateGeoMessage(0.0, 0.0, 1234, 10, 1);
         if (!item.pClient->sendGeoPayload(geoMessage)) {
-            Logging::warn("NormalLoop", "Failed to send GEO payload to " + item.info.bleName);
+            NSG_LOG_WARN("NormalLoop", "Failed to send GEO payload to %s", item.info.bleName.c_str());
             item.pClient->disconnect();
         }
 
@@ -98,7 +101,7 @@ void NormalMode::loop() {
     if (scanStopped) {
         // restart scanning
         if (!scanner->startScanning()) {
-            Logging::fatal("NormalSetup", "failed to start BLE scanning");
+            NSG_LOG_FATAL("NormalSetup", "failed to start BLE scanning");
         }
     }
 }

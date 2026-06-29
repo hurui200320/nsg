@@ -5,16 +5,16 @@
 #include <inttypes.h>
 
 #include "BlowfishHasher.h"
-#include "Esp32RandomGenerator.h"
 #include "GeoMessage.h"
 #include "NikonPairingEngine.h"
 #include "PairingMessage.h"
+#include "RandomGenerator.h"
 #include "TimeMessage.h"
 
 class NikonBLEClient {
    public:
-    NikonBLEClient();
-    NikonBLEClient(const uint32_t savedDevice, const uint32_t savedNonce);
+    NikonBLEClient(RandomGenerator& randomGenerator);
+    NikonBLEClient(RandomGenerator& randomGenerator, const uint32_t savedDevice, const uint32_t savedNonce);
     ~NikonBLEClient();
 
     // return false means failed to handshake
@@ -29,7 +29,7 @@ class NikonBLEClient {
     bool sendGeoPayload(GeoMessage& message);
 
    private:
-    Esp32RandomGenerator rnd;
+    RandomGenerator& rnd;
     BlowfishHasher hasher;
     NikonPairingEngine engine;
     uint32_t device;

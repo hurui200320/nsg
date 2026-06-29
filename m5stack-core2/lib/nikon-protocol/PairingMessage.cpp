@@ -6,7 +6,11 @@ PairingMessage::PairingMessage(
     uint8_t stage, uint64_t timestamp, uint32_t device, uint32_t nonce) : stage(stage), timestamp(timestamp), device(device), nonce(nonce) {
 }
 
-void PairingMessage::encode(uint8_t* buffer) const {
+bool PairingMessage::encode(uint8_t* buffer, size_t bufferSize) const {
+    if (bufferSize < SIZE) {
+        return false;
+    }
+
     buffer[0] = stage;
 
     buffer[1] = static_cast<uint8_t>(timestamp & 0xFF);
@@ -27,9 +31,15 @@ void PairingMessage::encode(uint8_t* buffer) const {
     buffer[14] = static_cast<uint8_t>((nonce >> 8) & 0xFF);
     buffer[15] = static_cast<uint8_t>((nonce >> 16) & 0xFF);
     buffer[16] = static_cast<uint8_t>((nonce >> 24) & 0xFF);
+
+    return true;
 }
 
-PairingMessage PairingMessage::decode(const uint8_t* data) {
+PairingMessage PairingMessage::decode(const uint8_t* data, size_t dataSize) {
+    if (dataSize < SIZE) {
+        return PairingMessage(0x00, 0ULL, 0U, 0U);
+    }
+
     uint8_t stage = data[0];
 
     uint64_t timestamp =

@@ -12,6 +12,7 @@ void testCapturedCameraHashMatchesFurble() {
     BlowfishHasher hasher;
     BlowfishHasher::HashResult result = hasher.hash(blocks, 6);
 
+    TEST_ASSERT_TRUE(result.valid);
     TEST_ASSERT_EQUAL_UINT32(0xe4f2b3a8, result.left);
     TEST_ASSERT_EQUAL_UINT32(0x136ad516, result.right);
 }

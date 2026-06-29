@@ -1,8 +1,28 @@
 #include "GeoMessage.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <tuple>
+
+namespace {
+
+constexpr double MIN_LAT = -90.0;
+constexpr double MAX_LAT = 90.0;
+constexpr double MIN_LON = -180.0;
+constexpr double MAX_LON = 180.0;
+constexpr int32_t MIN_ALTITUDE = -65535;
+constexpr int32_t MAX_ALTITUDE = 65535;
+constexpr uint8_t MAX_SATELLITES = 100;
+
+double clampCoordinate(double value, double min, double max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+}  // namespace
 
 GeoMessage::GeoMessage(
     char latDirection, uint8_t latDegrees, uint8_t latMinutes,
@@ -31,9 +51,18 @@ GeoMessage GeoMessage::fromDecimal(
     uint8_t hour, uint8_t minute, uint8_t second,
     uint8_t centiseconds, uint8_t valid
 ) {
+    lat = clampCoordinate(lat, MIN_LAT, MAX_LAT);
+    lon = clampCoordinate(lon, MIN_LON, MAX_LON);
+
+    if (altitude < MIN_ALTITUDE) altitude = MIN_ALTITUDE;
+    if (altitude > MAX_ALTITUDE) altitude = MAX_ALTITUDE;
+
+    if (satellites > MAX_SATELLITES) satellites = MAX_SATELLITES;
+
     DirectionalCoordinate latCoord = decimalToNikon(lat, 'N', 'S');
     DirectionalCoordinate lonCoord = decimalToNikon(lon, 'E', 'W');
     char altitudeRef = (altitude >= 0) ? 'P' : 'M';
+    // altitude has been clamped to [-65535, 65535], so std::abs is always safe.
     uint16_t absAltitude = static_cast<uint16_t>(std::abs(altitude));
 
     return GeoMessage(
@@ -46,7 +75,11 @@ GeoMessage GeoMessage::fromDecimal(
     );
 }
 
-void GeoMessage::encode(uint8_t *buffer) const {
+bool GeoMessage::encode(uint8_t *buffer, size_t bufferSize) const {
+    if (bufferSize < SIZE) {
+        return false;
+    }
+
     // Header (little-endian)
     buffer[0] = static_cast<uint8_t>(0x7F);
     buffer[1] = static_cast<uint8_t>(0x00);
@@ -80,10 +113,23 @@ void GeoMessage::encode(uint8_t *buffer) const {
     buffer[24] = valid;
 
     std::memcpy(&buffer[25], datum, 6);
-    std::memset(&buffer[31], 0, 10);
+    std::memcpy(&buffer[31], padding, 10);
+
+    return true;
 }
 
-GeoMessage GeoMessage::decode(const uint8_t *data) {
+GeoMessage GeoMessage::decode(const uint8_t *data, size_t dataSize) {
+    if (dataSize < SIZE) {
+        return GeoMessage(
+            'N', 0, 0, 0, 0,
+            'E', 0, 0, 0, 0,
+            0, 'P', 0,
+            0, 0, 0, 0, 0, 0,
+            0, 0
+        );
+    }
+
+
     char latDirection = static_cast<char>(data[2]);
     uint8_t latDegrees = data[3];
     uint8_t latMinutes = data[4];

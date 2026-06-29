@@ -26,19 +26,19 @@ void PairingScanner::startScanning() {
     // window for active scan, in MS
     pBLEScan->setWindow(90);
 
-    Logging::info("PairingScanner::startScanning", "start scanning...");
+    NSG_LOG_INFO("PairingScanner::startScanning", "start scanning...");
     // false to clear result, otherwise if camera's manufacturer data update,
     // callback will be skipped
     // this will basically scans forever
     if (!pBLEScan->start(UINT32_MAX, nullptr, false)) {
-        Logging::fatal("PairingScanner::startScanning", "failed to start BLE scanning");
+        NSG_LOG_FATAL("PairingScanner::startScanning", "failed to start BLE scanning");
     }
 }
 
 void PairingScanner::stopScanning() {
     pBLEScan->setAdvertisedDeviceCallbacks(nullptr, false, true);
     pBLEScan->stop();
-    Logging::info("PairingScanner::stopScanning", "scanning stopped");
+    NSG_LOG_INFO("PairingScanner::stopScanning", "scanning stopped");
 }
 
 void PairingScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
@@ -83,7 +83,7 @@ void PairingScanner::onResult(BLEAdvertisedDevice advertisedDevice) {
     fillScannedCamera(&camera, deviceName, deviceAddr, advertisedDevice.getAddressType());
 
     if (!xQueueSend(scanResultQueue, &camera, (TickType_t)0)) {
-        Logging::warn("PairingBLE::processScanResult", "Queue full, cannot post new items");
+        NSG_LOG_WARN("PairingBLE::processScanResult", "Queue full, cannot post new items");
     }
 }
 

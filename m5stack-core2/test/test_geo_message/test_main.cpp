@@ -10,7 +10,7 @@ void testFromDecimalEncodeDecodeRoundTrip() {
     );
 
     uint8_t encoded[GeoMessage::SIZE];
-    original.encode(encoded);
+    original.encode(encoded, sizeof(encoded));
 
     TEST_ASSERT_EQUAL_UINT8(41, GeoMessage::SIZE);
     static const uint8_t expected[GeoMessage::SIZE] = {
@@ -33,7 +33,7 @@ void testFromDecimalEncodeDecodeRoundTrip() {
     };
     TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, encoded, GeoMessage::SIZE);
 
-    GeoMessage decoded = GeoMessage::decode(encoded);
+    GeoMessage decoded = GeoMessage::decode(encoded, sizeof(encoded));
     TEST_ASSERT_TRUE(original == decoded);
 }
 
@@ -45,7 +45,7 @@ void testNegativeAltitudeAndLongitude() {
     );
 
     uint8_t encoded[GeoMessage::SIZE];
-    original.encode(encoded);
+    original.encode(encoded, sizeof(encoded));
 
     TEST_ASSERT_EQUAL_UINT8('S', encoded[2]);
     TEST_ASSERT_EQUAL_UINT8('W', encoded[7]);
@@ -54,7 +54,7 @@ void testNegativeAltitudeAndLongitude() {
     TEST_ASSERT_EQUAL_UINT8(0, encoded[15]);
     TEST_ASSERT_EQUAL_UINT8(12, encoded[23]);
 
-    GeoMessage decoded = GeoMessage::decode(encoded);
+    GeoMessage decoded = GeoMessage::decode(encoded, sizeof(encoded));
     TEST_ASSERT_TRUE(original == decoded);
 }
 

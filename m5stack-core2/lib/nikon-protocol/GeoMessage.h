@@ -95,16 +95,16 @@ public:
     );
 
     /**
-     * Encodes this message into the supplied 41-byte buffer.
-     * The caller must ensure [buffer] has room for at least [SIZE] bytes.
+     * Encodes this message into the supplied buffer.
+     * Returns true on success, false if [bufferSize] is too small.
      */
-    void encode(uint8_t *buffer) const;
+    bool encode(uint8_t *buffer, size_t bufferSize) const;
 
     /**
-     * Decodes a GeoMessage from a 41-byte buffer.
-     * The caller must ensure [data] has at least [SIZE] bytes.
+     * Decodes a GeoMessage from the supplied buffer.
+     * Returns a default (zeroed/invalid) message if [dataSize] is too small.
      */
-    static GeoMessage decode(const uint8_t *data);
+    static GeoMessage decode(const uint8_t *data, size_t dataSize);
 
     bool operator==(const GeoMessage &other) const;
 

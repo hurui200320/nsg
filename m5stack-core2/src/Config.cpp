@@ -3,30 +3,32 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 
-#include "Esp32RandomGenerator.h"
 #include "Logging.h"
+#include "RandomGenerator.h"
 
 SavedCameraInfo::SavedCameraInfo(String bleName, uint32_t device, uint32_t nonce) : bleName(bleName), device(device), nonce(nonce) {}
 
-void SavedCameraInfo::addToJsonArray(JsonDocument& parent) {
+void SavedCameraInfo::addToJsonArray(JsonDocument& parent) const {
     auto doc = parent.add<JsonObject>();
     doc["bleName"] = bleName;
     doc["device"] = device;
     doc["nonce"] = nonce;
 }
 
-uint32_t Config::getOrGenerateId() {
+uint32_t Config::getOrGenerateId(RandomGenerator& randomGenerator) {
     Preferences nvs;
     if (!nvs.begin("nsg", false)) {
-        Logging::fatal("Config::getOrGenerateId", "Failed to open NVS");
+        NSG_LOG_FATAL("Config::getOrGenerateId", "Failed to open NVS");
     }
 
     auto result = nvs.getUInt("id", 0);
     while (result == 0) {
-        Esp32RandomGenerator generator;
-        result = generator.nextUInt32();
+        result = randomGenerator.nextUInt32();
+        // really bad luck, keep trying
+        if (result == 0) continue;
+        // save this non-zero id
         if (!nvs.putUInt("id", result)) {
-            Logging::fatal("Config::getOrGenerateId", "Failed to save id to NVS");
+            NSG_LOG_FATAL("Config::getOrGenerateId", "Failed to save id to NVS");
         }
     }
 
@@ -48,7 +50,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     JsonDocument doc;
     auto error = deserializeJson(doc, json);
     if (error) {
-        Logging::fatal("Config::getSavedCameras", "Failed to parse Json, error: " + String(error.c_str()));
+        NSG_LOG_FATAL("Config::getSavedCameras", "Failed to parse Json, error: %s", error.c_str());
     }
 
     std::vector<SavedCameraInfo> result;
@@ -67,7 +69,7 @@ std::vector<SavedCameraInfo> Config::getSavedCameras() {
     return result;
 }
 
-void Config::addToSavedCameras(SavedCameraInfo cameraInfo) {
+void Config::addToSavedCameras(const SavedCameraInfo& cameraInfo) {
     std::vector<SavedCameraInfo> cameras = getSavedCameras();
 
     // loop through existing cameras list and find item with the same name
@@ -98,7 +100,7 @@ void Config::addToSavedCameras(SavedCameraInfo cameraInfo) {
 
     Preferences nvs;
     if (!nvs.begin("nsg", false)) {
-        Logging::fatal("Config::addToSavedCameras", "Failed to open NVS");
+        NSG_LOG_FATAL("Config::addToSavedCameras", "Failed to open NVS");
     }
     nvs.putString("savedCameras", json.c_str());
     nvs.end();

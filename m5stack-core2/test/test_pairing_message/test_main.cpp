@@ -11,7 +11,7 @@ void testEncodeDecodeRoundTrip() {
     );
 
     uint8_t encoded[PairingMessage::SIZE];
-    original.encode(encoded);
+    original.encode(encoded, sizeof(encoded));
 
     TEST_ASSERT_EQUAL_UINT8(17, PairingMessage::SIZE);
 
@@ -27,7 +27,7 @@ void testEncodeDecodeRoundTrip() {
     };
     TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, encoded, PairingMessage::SIZE);
 
-    PairingMessage decoded = PairingMessage::decode(encoded);
+    PairingMessage decoded = PairingMessage::decode(encoded, sizeof(encoded));
     TEST_ASSERT_EQUAL_UINT8(original.stage, decoded.stage);
     TEST_ASSERT_EQUAL_UINT64(original.timestamp, decoded.timestamp);
     TEST_ASSERT_EQUAL_UINT32(original.device, decoded.device);

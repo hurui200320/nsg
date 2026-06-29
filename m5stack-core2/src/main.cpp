@@ -53,11 +53,11 @@ BootModeEnum detectBootMode() {
     // show result
     M5.Display.fillScreen(TFT_BLACK);
     if (touched >= THRESHOLD_MS) {
-        Logging::info("DetectBootMode", "Booting into pairing mode...");
+        NSG_LOG_INFO("DetectBootMode", "Booting into pairing mode...");
         drawCentered("Pairing Mode", M5.Display.height() / 2, 3, TFT_GREEN);
         return BootModeEnum::PAIRING;
     } else {
-        Logging::info("DetectBootMode", "Booting into normal mode...");
+        NSG_LOG_INFO("DetectBootMode", "Booting into normal mode...");
         drawCentered("Normal Mode", M5.Display.height() / 2, 3, TFT_CYAN);
         return BootModeEnum::NORMAL;
     }
@@ -70,21 +70,21 @@ PairingMode* pairingMode = nullptr;
 void setup() {
     // enable default serial as monitor
     Serial.begin(115200);
-    Logging::debug("MainSetup", "Serial initialized");
+    NSG_LOG_DEBUG("MainSetup", "Serial initialized");
     // Initialize M5 for screen, etc.
     M5.begin();
-    Logging::debug("MainSetup", "M5 initialized");
+    NSG_LOG_DEBUG("MainSetup", "M5 initialized");
 
     if (!M5.Rtc.isEnabled()) {
-        Logging::fatal("MainSetup", "RTC not found, waiting...");
+        NSG_LOG_FATAL("MainSetup", "RTC not found, waiting...");
     }
 
     if (!M5.Rtc.begin()) {
-        Logging::error("MainSetup", "failed to initialize RTC");
+        NSG_LOG_ERROR("MainSetup", "failed to initialize RTC");
     }
 
     // collect boot up mode
-    Logging::debug("MainSetup", "Detecting boot mode...");
+    NSG_LOG_DEBUG("MainSetup", "Detecting boot mode...");
     bootModeType = detectBootMode();
 
     switch (bootModeType) {
@@ -99,7 +99,7 @@ void setup() {
             break;
 
         default:
-            Logging::fatal("MainSetup", "Unexpected boot type");
+            NSG_LOG_FATAL("MainSetup", "Unexpected boot type");
             break;
     }
 }
@@ -110,7 +110,7 @@ void loop() {
             if (normalMode) {
                 normalMode->loop();
             } else {
-                Logging::fatal("MainLoop", "Boot type normal but nullptr");
+                NSG_LOG_FATAL("MainLoop", "Boot type normal but nullptr");
             }
             break;
 
@@ -118,12 +118,12 @@ void loop() {
             if (pairingMode) {
                 pairingMode->loop();
             } else {
-                Logging::fatal("MainLoop", "Boot type pairing but nullptr");
+                NSG_LOG_FATAL("MainLoop", "Boot type pairing but nullptr");
             }
             break;
 
         default:
-            Logging::fatal("MainLoop", "Unexpected boot type");
+            NSG_LOG_FATAL("MainLoop", "Unexpected boot type");
             break;
     }
 }

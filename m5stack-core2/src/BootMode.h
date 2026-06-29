@@ -1,6 +1,8 @@
 #ifndef BOOT_MODE_H
 #define BOOT_MODE_H
 
+#include "RandomGenerator.h"
+
 enum class BootModeEnum {
     PAIRING,
     NORMAL
@@ -16,7 +18,7 @@ class BootMode {
     /**
      * Init BLE with proper device name.
      */
-    void initBLE();
+    void initBLE(RandomGenerator& randomGenerator);
 };
 
 #endif  // BOOT_MODE_H
