@@ -12,6 +12,7 @@ PairingScanner::PairingScanner() {
 }
 
 PairingScanner::~PairingScanner() {
+    stopScanning();
     vQueueDelete(scanResultQueue);
 }
 

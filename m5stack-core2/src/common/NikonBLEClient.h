@@ -19,7 +19,7 @@ class NikonBLEClient {
 
     // return false means failed to handshake
     bool doHandshake(BLEAddress address, const uint8_t type);
-    bool isConnnected();
+    bool isConnected();
     void disconnect();
     uint32_t getDevice();
     uint32_t getNonce();

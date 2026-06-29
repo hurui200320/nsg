@@ -3,6 +3,7 @@
 
 #include <BluetoothSerial.h>
 
+#include <atomic>
 #include <string>
 
 class ClassicBT {
@@ -22,9 +23,9 @@ class ClassicBT {
     uint32_t pairCode;
     std::string targetName;
     // these bool flags are shared with callbacks
-    volatile bool pairCodeReady = false;
-    volatile bool authDone = false;
-    volatile bool authSuccess = false;
+    std::atomic_bool pairCodeReady = false;
+    std::atomic_bool authDone = false;
+    std::atomic_bool authSuccess = false;
 };
 
 #endif

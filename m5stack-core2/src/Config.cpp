@@ -25,7 +25,9 @@ uint32_t Config::getOrGenerateId() {
     while (result == 0) {
         Esp32RandomGenerator generator;
         result = generator.nextUInt32();
-        nvs.putUInt("id", result);
+        if (!nvs.putUInt("id", result)) {
+            Logging::fatal("Config::getOrGenerateId", "Failed to save id to NVS");
+        }
     }
 
     nvs.end();
@@ -91,7 +93,7 @@ void Config::addToSavedCameras(SavedCameraInfo cameraInfo) {
         camera.addToJsonArray(doc);
     }
 
-    std::string json;
+    String json;
     serializeJson(doc, json);
 
     Preferences nvs;

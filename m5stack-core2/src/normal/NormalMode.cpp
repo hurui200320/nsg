@@ -39,12 +39,11 @@ void NormalMode::loop() {
         // TODO: how do we know the max number of BLE connection?
         for (auto& item : connectedCameras) {
             if (item.info.bleName == scanned.name && item.info.device == scanned.device) {
-                if (item.pClient != nullptr && !item.pClient->isConnnected()) {
+                if (item.pClient != nullptr && !item.pClient->isConnected()) {
                     // disconnected, kill current client and restart
                     item.pClient->disconnect();
                     delete item.pClient;
                     item.pClient = nullptr;
-                    item.lastBroadcastMillis = millis();
                 }
                 if (item.pClient == nullptr) {
                     item.pClient = new NikonBLEClient(item.info.device, item.info.nonce);
@@ -57,7 +56,8 @@ void NormalMode::loop() {
                     if (!item.pClient->doHandshake(bleAddr, scanned.addrType)) {
                         Logging::error("NormalLoop", "Failed to reconnect to " + bleAddr.toString() + "due to handshake failure");
                     } else {
-                        Logging::error("NormalLoop", "BLE connected to " + bleAddr.toString());
+                        Logging::info("NormalLoop", "BLE connected to " + bleAddr.toString());
+                        item.lastBroadcastMillis = 0;
                     }
                 }
             }
@@ -69,7 +69,7 @@ void NormalMode::loop() {
     for (auto& item : connectedCameras) {
         if (millis() - item.lastBroadcastMillis < 15000) continue;
         if (item.pClient == nullptr) continue;
-        if (!item.pClient->isConnnected()) continue;
+        if (!item.pClient->isConnected()) continue;
         // stop scanning to free up the attenna
         if (!scanStopped) {
             scanner->stopScanning();
@@ -83,6 +83,7 @@ void NormalMode::loop() {
             item.pClient->disconnect();
         }
         Logging::info("NormalLoop", "Sending GEO payload to " + item.info.bleName + "...");
+        // TODO: hook up GPS
         auto geoMessage = generateGeoMessage(0.0, 0.0, 1234, 10, 1);
         if (!item.pClient->sendGeoPayload(geoMessage)) {
             Logging::warn("NormalLoop", "Failed to send GEO payload to " + item.info.bleName);

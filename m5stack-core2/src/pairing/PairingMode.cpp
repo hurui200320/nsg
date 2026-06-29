@@ -94,6 +94,7 @@ void PairingMode::loop() {
         }
         delete classicBT;
         classicBT = nullptr;
+        delete pClient;
         // reboot anyway
         Logging::info("loop", "rebooting...");
         ESP.restart();

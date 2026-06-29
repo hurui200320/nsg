@@ -44,7 +44,7 @@ ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(
     serialBT.onConfirmRequest([this](uint32_t numVal) {
         pairCode = numVal;
         char buffer[10];
-        sprintf(buffer, "%06lu", numVal);
+        snprintf(buffer, sizeof(buffer), "%06u", numVal);
         Logging::info("ClassicBT", String("The pairing PIN is: ") + buffer);
         pairCodeReady = true;
     });
@@ -67,38 +67,39 @@ ClassicBT::~ClassicBT() { serialBT.end(); }
 
 bool ClassicBT::searchAndInitiatePair(uint32_t searchTimeoutMs) {
     Logging::info("ClassicBT::searchAndInitiatePair", "Scanning classic BT...");
-    BTAdvertisedDevice* pDevice = nullptr;
+    bool deviceFound = false;
+    // the native BT addr for target device
+    uint8_t classicAddr[ESP_BD_ADDR_LEN];
     uint32_t scanStartTime = millis();
-    while (!pDevice && millis() - scanStartTime < searchTimeoutMs) {
+    while (!deviceFound && millis() - scanStartTime < searchTimeoutMs) {
         // scan for 10s
         auto pResults = serialBT.discover(10000);
         for (size_t i = 0; i < pResults->getCount(); i++) {
             auto device = pResults->getDevice(i);
             if (!device->haveName()) continue;
             if (targetName == device->getName()) {
-                pDevice = device;
+                Logging::info("ClassicBT::searchAndInitiatePair",
+                              "Find camera " + String(targetName.c_str()) + ", addr=" + device->getAddress().toString().c_str());
+                memcpy(classicAddr, device->getAddress().getNative(), ESP_BD_ADDR_LEN);
+                deviceFound = true;
                 break;
             }
         }
+        serialBT.discoverClear();
     }
 
-    if (!pDevice) {
+    if (!deviceFound) {
         Logging::warn("ClassicBT::searchAndInitiatePair", "Timeout on searching for " + String(targetName.c_str()));
         return false;
     }
 
-    Logging::info("ClassicBT::searchAndInitiatePair", "Find camera " + String(pDevice->getName().c_str()) + ", addr=" + pDevice->getAddress().toString().c_str());
-
     Logging::info("ClassicBT::searchAndInitiatePair", "Initiating GAP bonding via BTA_DmBond...");
-    uint8_t classicAddr[ESP_BD_ADDR_LEN];
-    memcpy(classicAddr, pDevice->getAddress().getNative(), ESP_BD_ADDR_LEN);
-
     pairCodeReady = false;
     authDone = false;
     authSuccess = false;
     BTA_DmBond(classicAddr);
 
-    unsigned long bondStart = millis();
+    uint32_t bondStart = millis();
     while (!pairCodeReady && millis() - bondStart < 30000) {
         delay(100);
     }
@@ -120,7 +121,7 @@ bool ClassicBT::confirmPairCode(bool accept) {
         return false;
     }
 
-    unsigned long authStart = millis();
+    uint32_t authStart = millis();
     // wait 2 mins for auth, aka user click confirm on camera
     while (!authDone && millis() - authStart < 120000) {
         delay(100);

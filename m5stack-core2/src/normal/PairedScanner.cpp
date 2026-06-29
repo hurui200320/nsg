@@ -10,6 +10,7 @@ PairedScanner::PairedScanner() {
     scanResultQueue = xQueueCreate(10, sizeof(ScannedCamera));
 }
 PairedScanner::~PairedScanner() {
+    stopScanning();
     vQueueDelete(scanResultQueue);
 }
 
