@@ -105,3 +105,31 @@ After connecting you can leave the app; it stays connected via the foreground se
 - **Do not clear SnapBridge's data or reinstall it**: it would generate a new device identity and you'd need to re-run the auto-extraction;
 - Nikon camera LCD has a firmware-level bug displaying fractional minutes (e.g. `51.002'` shown as `51.2'`), but the EXIF coordinates written to photos are correct (see the original project).
 - The app does not have a custom icon yet (the author is too lazy to make one 😋). If you would like to contribute one, please open an [issue](https://github.com/HowenXu/nsg/issues).
+
+## Release builds (CI)
+
+Release APKs are built and published by GitHub Actions.
+
+**How it works**
+
+- Pushing a tag matching `v*` triggers `.github/workflows/release.yml`.
+- The workflow restores the signing key from repository secrets (the keystore itself is never committed), runs `./gradlew assembleRelease`, and attaches the signed APK to the GitHub Release for that tag.
+
+**Required repository secrets**
+
+Configure these in **Settings -> Secrets and variables -> Actions**. If they are missing the workflow fails with a clear message instead of publishing a debug-signed APK:
+
+| Secret | Meaning |
+| --- | --- |
+| `KEYSTORE_BASE64` | Base64 of the release `.keystore`/`.jks` file |
+| `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Key alias |
+| `KEY_PASSWORD` | Key password |
+
+**Releasing**
+
+1. Bump `versionCode`/`versionName` in `app/build.gradle.kts`.
+2. Create and push a tag: `git tag v1.0.1 && git push origin v1.0.1`.
+3. Download the signed APK from the generated GitHub Release.
+
+Locally, release builds fall back to the debug key when no `keystore.properties` is present, so clean checkouts still build.
