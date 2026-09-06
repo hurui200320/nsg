@@ -63,7 +63,7 @@ The app auto-generates a controller name in SnapBridge's exact format (`Android_
 
 ### 1. Install
 
-Download `Nikon_Smart_GPS.apk` from [Releases](https://github.com/HowenXu/nsg/releases). On first launch, allow:
+Download `nsg.apk` from [Releases](https://github.com/HowenXu/nsg/releases). On first launch, allow:
 
 - Location permission (for GPS);
 - Bluetooth permission (to connect);
@@ -105,3 +105,59 @@ After connecting you can leave the app; it stays connected via the foreground se
 - **Do not clear SnapBridge's data or reinstall it**: it would generate a new device identity and you'd need to re-run the auto-extraction;
 - Nikon camera LCD has a firmware-level bug displaying fractional minutes (e.g. `51.002'` shown as `51.2'`), but the EXIF coordinates written to photos are correct (see the original project).
 - The app does not have a custom icon yet (the author is too lazy to make one 😋). If you would like to contribute one, please open an [issue](https://github.com/HowenXu/nsg/issues).
+
+## Release builds (CI)
+
+Release APKs are built and published by GitHub Actions.
+
+**How it works**
+
+- Pushing a tag matching `v*` triggers `.github/workflows/release.yml`.
+- The workflow decodes the release keystore from repository secrets (the keystore itself is never committed) and runs `./gradlew assembleRelease`, which signs the APK via `signingConfigs.release` fed by `KEYSTORE_PATH` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` env vars. Signing is enabled only when `NSG_SIGN_RELEASE=true` (set by the release workflow's job env, so other CI jobs and fork PRs without secrets still build unsigned).
+- The signed `app-release.apk` is verified with `apksigner verify` and `zipalign -c`, renamed to `nsg.apk`, and attached to the GitHub Release for that tag.
+
+Local `assembleRelease` builds are always unsigned (`app-release-unsigned.apk`) by design — no keystore setup needed, any clean checkout builds. Unsigned APKs cannot be installed directly (`adb install` rejects them); to smoke-test a local release build, sign it yourself:
+
+**Option A — sign the unsigned APK with your own keystore**
+
+```bash
+cd android
+./gradlew assembleRelease
+# -> app/build/outputs/apk/release/app-release-unsigned.apk
+zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk app-aligned.apk
+apksigner sign --ks /path/to/your.keystore --ks-pass pass:STOREPASS --ks-key-alias ALIAS --key-pass pass:KEYPASS --out nsg-local.apk app-aligned.apk
+apksigner verify --print-certs nsg-local.apk
+adb install nsg-local.apk
+```
+
+(`zipalign`/`apksigner` live in the Android SDK build-tools, e.g. `$ANDROID_HOME/build-tools/36.0.0/`.)
+
+**Option B — reproduce the CI signing path with a throwaway test key**
+
+```bash
+keytool -genkeypair -keystore /tmp/test.keystore -alias test -keyalg RSA -keysize 2048 -validity 3650 \
+  -storepass test123 -keypass test123 -dname "CN=test"
+cd android
+NSG_SIGN_RELEASE=true KEYSTORE_PATH=/tmp/test.keystore KEYSTORE_PASSWORD=test123 KEY_ALIAS=test KEY_PASSWORD=test123 \
+  ./gradlew assembleRelease
+# -> app/build/outputs/apk/release/app-release.apk (signed)
+```
+
+Manually dispatched workflow runs (`workflow_dispatch`) also build, verify, and sign, but upload the APK as a workflow artifact instead of publishing a GitHub Release.
+
+**Required repository secrets**
+
+Configure these in **Settings -> Secrets and variables -> Actions**. If any are missing the workflow fails before building instead of publishing a bad APK:
+
+| Secret | Meaning |
+| --- | --- |
+| `KEYSTORE_BASE64` | Base64 of the release `.keystore`/`.jks` file |
+| `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Key alias |
+| `KEY_PASSWORD` | Key password |
+
+**Releasing**
+
+1. Bump `versionCode`/`versionName` in `app/build.gradle.kts`.
+2. Create and push a tag: `git tag v1.0.1 && git push origin v1.0.1`.
+3. Download the signed `nsg.apk` from the generated GitHub Release.
