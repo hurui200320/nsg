@@ -1,9 +1,9 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
-
-import java.util.Properties
 
 android {
     namespace = "info.skyblond.nsp"

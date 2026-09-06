@@ -1,4 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App -->
     <string name="app_name">Nikon Smart GPS</string>
+
+    <!-- Common actions -->
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_unset_default">Unset Default</string>
+    <string name="action_set_default">Set Default</string>
+    <string name="action_auto_extract_id">Auto Extract ID</string>
+
+    <!-- Connection states -->
+    <string name="state_idle">Idle</string>
+    <string name="state_scanning">Scanning...</string>
+    <string name="state_connecting">Connecting...</string>
+    <string name="state_discovering">Discovering...</string>
+    <string name="state_pairing">Pairing...</string>
+    <string name="state_bonding">Classic bonding...</string>
+    <string name="state_ready">Ready</string>
+    <string name="state_busy">Busy</string>
+    <string name="state_error_prefix">"Error: "</string>
+
+    <!-- Permissions / Bluetooth gate -->
+    <string name="permission_rationale">This app needs Bluetooth and location permissions to scan for and connect to your Nikon camera.</string>
+    <string name="permission_grant">Grant permissions</string>
+    <string name="bt_required_message">Bluetooth is required to connect to the camera.</string>
+    <string name="bt_enable">Enable Bluetooth</string>
+    <string name="bt_open_settings">Open Bluetooth settings</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">Camera connection</string>
+    <string name="notification_channel_description">Keeps the connection to your Nikon camera</string>
+
+    <!-- Main screen -->
+    <string name="btn_pair_new_camera">Pair New Camera</string>
+    <string name="btn_connect_saved">Connect Saved</string>
+    <string name="btn_send_gps">Send GPS</string>
+    <string name="btn_send_gps_now">Send GPS Now</string>
+    <string name="status_label">Status: %1$s</string>
+    <string name="status_service_running">Service running: %1$s</string>
+    <string name="gps_label">"GPS: "</string>
+    <string name="gps_off_auto_start">Off (auto-starts after connecting)</string>
+    <string name="gps_locating">Locating...</string>
+    <string name="gps_sent_at">"  |  sent %1$s"</string>
+    <string name="events_title">Recent events:</string>
+    <string name="events_empty">No events</string>
+    <string name="cd_more">More</string>
+    <string name="cd_back">Back</string>
+    <string name="battery_exempt">Battery optimization: exempt (runs in background)</string>
+    <string name="battery_not_exempt">Battery optimization: not exempt - tap to allow background running</string>
+
+    <!-- Advanced settings -->
+    <string name="menu_advanced_settings_hint">Advanced settings (no changes needed)</string>
+    <string name="advanced_settings_title">Advanced Settings</string>
+    <string name="advanced_settings_description">These are usually fine as-is; only adjust after switching SnapBridge devices or re-extracting the ID.</string>
+    <string name="spoof_name_label">Camera-side device name (optional)</string>
+    <string name="spoof_name_placeholder">Default: nsg-poc</string>
+    <string name="spoof_name_support">ASCII only, max 32 chars; matching SnapBridge\'s name makes the camera treat this app as the same device</string>
+    <string name="fixed_device_id_label">Fixed device ID (optional, 8 or 16 hex)</string>
+    <string name="fixed_device_id_placeholder">e.g. 445D4B24 or 445D4B24981064F7; 16 hex = device+nonce</string>
+    <string name="fixed_device_id_support">Enter SnapBridge\'s full ID (16 hex = device+nonce) to switch seamlessly; 8 hex fixes only the device ID</string>
+
+    <!-- Camera dialogs -->
+    <string name="dialog_select_camera_to_pair">Select camera to pair</string>
+    <string name="dialog_no_camera_found">No camera found. Make sure the camera is in pairing mode.</string>
+    <string name="dialog_already_paired_hint">Already paired; select to switch</string>
+    <string name="dialog_select_saved_camera">Select a saved camera</string>
+    <string name="dialog_no_saved_cameras">No saved cameras yet. Pair one first.</string>
+    <string name="default_at_startup">✓ Default at startup</string>
+    <string name="dialog_delete_camera_title">Delete camera</string>
+    <string name="dialog_delete_camera_message">Delete %1$s? You will need to pair again to reconnect.</string>
+    <plurals name="dialog_saved_count_hint">
+        <item quantity="one">%1$d camera saved. Use \"Set Default\" to pick the auto-connect camera at startup; \"Delete\" removes it.</item>
+        <item quantity="other">%1$d cameras saved. Use \"Set Default\" to pick the auto-connect camera at startup; \"Delete\" removes it.</item>
+    </plurals>
+
+    <!-- Service logs -->
+    <string name="log_not_ready_cannot_send_gps">Not ready - cannot send GPS</string>
+    <string name="log_gps_sent_manually">GPS sent manually</string>
+    <string name="log_no_fix_sending_fallback">No fix yet; sending fallback data</string>
+    <string name="log_removed_startup_default">Removed %1$s as the startup default</string>
+    <string name="log_set_startup_default">Set %1$s as the startup default</string>
+    <string name="log_deleted_camera">Deleted %1$s</string>
+    <string name="log_gps_sent_coords">GPS sent (%1$.5f, %2$.5f)</string>
+    <string name="log_gps_write_timeout">GPS write timed out; back to ready</string>
+    <string name="log_gps_write_success">GPS sent</string>
+    <string name="log_no_location_source">No location source available</string>
+    <string name="log_location_tracking_enabled">Location tracking enabled (battery saver)</string>
+    <string name="log_missing_location_permission">Missing location permission; cannot get GPS</string>
+    <string name="log_multiple_cameras_no_default">Multiple cameras saved with no startup default; skipping auto-connect</string>
+    <string name="log_service_reconnect">Service restarted; reconnecting %1$s</string>
+
+    <!-- Pairing session logs -->
+    <string name="log_scan_failed">Scan failed: %1$d</string>
+    <string name="log_bluetooth_scanner_unavailable">Bluetooth scanner unavailable</string>
+    <string name="log_repairing_manual_hint">Re-pairing failed. Pair the camera manually in System Settings -> Bluetooth.</string>
+    <string name="log_pairing_removed_or_failed">Pairing removed/failed</string>
+    <string name="log_camera_pairing_request">Camera pairing request (code %1$s) - confirm in the system dialog</string>
+    <string name="log_fixed_id_mismatch_reextract">Fixed device ID no longer matches the camera (camera expects 0x%1$08X, fixed 0x%2$08X); cleared it and re-extracting</string>
+    <string name="log_paired_record_autocrack">Camera already has a pairing record (expects device ID=0x%1$08X). Auto-cracking the SnapBridge device ID...</string>
+    <string name="log_paired_record_adopt">Camera already paired (device ID=0x%1$08X); connecting with that ID directly</string>
+    <string name="log_controller_name_generated">Auto-generated controller name: %1$s</string>
+    <string name="log_autoextract_in_progress">Auto-extraction in progress, please wait...</string>
+    <string name="log_snapbridge_not_found_cannot_extract">SnapBridge (%1$s) not found; cannot auto-extract the device ID</string>
+    <string name="error_snapbridge_not_installed">SnapBridge not installed; cannot auto-extract</string>
+    <string name="log_snapbridge_install_time_scanning">SnapBridge installed: %1$s. Scanning for the camera...</string>
+    <string name="log_autoextract_scan_failed">Auto-extract: scan failed (%1$d)</string>
+    <string name="log_autoextract_no_advertisement">Auto-extract: no camera advertisement within 30s</string>
+    <string name="log_autoextract_missing_bt_permission">Auto-extract: missing Bluetooth permission</string>
+    <string name="error_missing_bt_permission">Missing Bluetooth permission</string>
+    <string name="log_autoextract_scan_start_failed">Auto-extract: failed to start scan %1$s</string>
+    <string name="log_snapbridge_not_found_install_first">SnapBridge (%1$s) not found; install it first to auto-extract the device ID</string>
+    <string name="log_camera_advertises_id_solving">Camera advertises device ID=0x%1$08X. Solving candidate seeds...</string>
+    <string name="log_no_candidates_try_alltime">No candidates in the install window; trying all-time candidates (2015-present)...</string>
+    <string name="log_no_candidates_failed">No candidate seeds; auto-extraction failed</string>
+    <string name="error_no_candidate_device_id">Could not solve any candidate device ID</string>
+    <string name="log_alltime_candidates_count">%1$d all-time candidate(s) (slow); starting tests...</string>
+    <string name="log_candidates_found">Found %1$d candidate(s); starting tests...</string>
+    <string name="log_all_candidates_rejected">All candidates rejected by the camera; extraction failed</string>
+    <string name="log_testing_candidate">Testing candidate %1$s (seed time %2$s)</string>
+    <string name="log_scanning_saved_camera">Scanning for the saved camera...</string>
+    <string name="log_camera_found_expects_id">Camera found: expects device ID=0x%1$08X (%2$s, RSSI=%3$d)</string>
+    <string name="log_device_id_mismatch_adopt">Device ID mismatch (saved 0x%1$08X, camera expects 0x%2$08X); adopting the camera ID, no need to delete pairings</string>
+    <string name="log_mtu_set">MTU set to %1$d</string>
+    <string name="error_camera_disconnected">Camera disconnected</string>
+    <string name="log_connection_rejected_rescan">Connection rejected by camera; rescanning to adopt the expected device ID (attempt %1$d/2)</string>
+    <string name="log_bluetooth_error">Bluetooth error: %1$s</string>
+    <string name="log_cannot_connect_hint">Cannot connect: make sure the camera is on and in pairing mode, then retry</string>
+    <string name="log_stage1_sent_fixed_id">Pairing stage 1 sent (using fixed device ID=0x%1$08X)</string>
+    <string name="log_stage1_sent">Pairing stage 1 sent</string>
+    <string name="log_autoextract_success">✅ Auto-extraction succeeded! The camera accepted the device ID %1$s; saved and continuing</string>
+    <string name="log_salt_verification_failed">Salt verification failed - handshake aborted</string>
+    <string name="log_stage3_sent">Pairing stage 3 sent</string>
+    <string name="log_camera_serial">Camera serial: %1$s</string>
+    <string name="log_unexpected_pairing_data">Unexpected pairing data (step %1$d)</string>
+    <string name="log_writing_controller_name">Writing controller name: %1$s</string>
+    <string name="log_write_failed">Write failed: status=%1$d</string>
+    <string name="log_candidate_rejected_testing_next">Candidate rejected (status=%1$d); testing the next one in 1.5s...</string>
+    <string name="log_pairing_write_rejected_retry">Pairing write rejected (status=%1$d) (attempt %2$d/2); retrying in 1s...</string>
+    <string name="log_disconnected_reconnecting">Disconnected; reconnecting first...</string>
+    <string name="bond_state_paired">Paired (12)</string>
+    <string name="bond_state_pairing">Pairing (11)</string>
+    <string name="bond_state_not_paired">Not paired (10)</string>
+    <string name="log_camera_rejected_pairing_write">Camera rejected the pairing write (status=%1$d). Current bond state: %2$s.</string>
+    <string name="log_rejected_with_fixed_identity">Rejected even with the fixed identity (device=0x%1$08X,nonce=0x%2$08X): make sure it matches the camera\'s pairing record</string>
+    <string name="log_pairing_rejected_checklist">Check: 1) the camera is on and not connected elsewhere; 2) if you just used SnapBridge, enter its full 16-hex ID (device+nonce) as the fixed device ID</string>
+    <string name="log_pairing_timeout">Pairing timed out. Make sure the camera is in pairing mode and retry, or pair manually in System Settings -> Bluetooth</string>
+    <string name="log_camera_ready">Camera ready</string>
+    <string name="log_stale_pairing_removing">Stale pairing detected; removing and re-pairing...</string>
+    <string name="log_stale_pairing_remove_timeout">Failed to remove the stale pairing in time; delete the camera\'s pairing in System Settings -> Bluetooth and retry</string>
+    <string name="log_stale_pairing_remove_failed">Could not remove the stale pairing; delete it manually in System Settings -> Bluetooth</string>
+    <string name="log_camera_paired_continuing">Camera paired; continuing...</string>
+    <string name="log_found_camera_requesting_pairing">Found camera (%1$s); requesting pairing...</string>
+    <string name="log_pairing_request_not_confirmed">Pairing request not confirmed: if no dialog appeared, pair manually in System Settings -> Bluetooth</string>
+    <string name="log_repeated_pairing_failures">Repeated pairing failures; stopped. Pair manually in System Settings -> Bluetooth or make sure the camera is on</string>
+    <string name="error_classic_pairing_failed">Classic pairing failed</string>
+    <string name="log_pairing_request_failed_retry">Pairing request failed; retrying discovery...</string>
+    <string name="log_searching_camera_bt">Searching for the camera over Bluetooth...</string>
+    <string name="log_found_paired_camera_switch">Found a paired camera (device ID=0x%1$08X); select to switch directly</string>
 </resources>

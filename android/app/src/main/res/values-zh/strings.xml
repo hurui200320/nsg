@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="app_name">尼康智能GPS</string>
+
+    <!-- Common actions -->
+    <string name="action_cancel">取消</string>
+    <string name="action_delete">删除</string>
+    <string name="action_connect">连接</string>
+    <string name="action_disconnect">断开连接</string>
+    <string name="action_unset_default">取消默认</string>
+    <string name="action_set_default">设为默认</string>
+    <string name="action_auto_extract_id">自动提取标识</string>
+
+    <!-- Connection states -->
+    <string name="state_idle">空闲</string>
+    <string name="state_scanning">扫描中...</string>
+    <string name="state_connecting">连接中...</string>
+    <string name="state_discovering">发现服务中...</string>
+    <string name="state_pairing">配对中...</string>
+    <string name="state_bonding">经典蓝牙配对中...</string>
+    <string name="state_ready">就绪</string>
+    <string name="state_busy">忙碌</string>
+    <string name="state_error_prefix">"错误: "</string>
+
+    <!-- Permissions / Bluetooth gate -->
+    <string name="permission_rationale">本应用需要蓝牙和定位权限，用于扫描并连接尼康相机。</string>
+    <string name="permission_grant">授予权限</string>
+    <string name="bt_required_message">连接相机需要开启蓝牙。</string>
+    <string name="bt_enable">开启蓝牙</string>
+    <string name="bt_open_settings">打开蓝牙设置</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">相机连接</string>
+    <string name="notification_channel_description">保持与尼康相机的连接</string>
+
+    <!-- Main screen -->
+    <string name="btn_pair_new_camera">配对新相机</string>
+    <string name="btn_connect_saved">连接已保存相机</string>
+    <string name="btn_send_gps">发送 GPS</string>
+    <string name="btn_send_gps_now">立即发送 GPS</string>
+    <string name="status_label">状态：%1$s</string>
+    <string name="status_service_running">服务运行中：%1$s</string>
+    <string name="gps_label">GPS：</string>
+    <string name="gps_off_auto_start">未开启（连接相机后自动定位）</string>
+    <string name="gps_locating">正在定位...</string>
+    <string name="gps_sent_at">"  |  已发送 %1$s"</string>
+    <string name="events_title">最近事件：</string>
+    <string name="events_empty">暂无事件</string>
+    <string name="cd_more">更多</string>
+    <string name="cd_back">返回</string>
+    <string name="battery_exempt">电池优化：已豁免（后台运行正常）</string>
+    <string name="battery_not_exempt">电池优化：未豁免 - 点击设置，允许后台运行</string>
+
+    <!-- Advanced settings -->
+    <string name="menu_advanced_settings_hint">高级设置（一般无需更改）</string>
+    <string name="advanced_settings_title">高级设置</string>
+    <string name="advanced_settings_description">以下设置一般无需更改；仅在切换 SnapBridge 设备或重新提取标识后需要调整。</string>
+    <string name="spoof_name_label">相机端设备名（伪装名，可留空）</string>
+    <string name="spoof_name_placeholder">默认：nsg-poc</string>
+    <string name="spoof_name_support">仅限英文和数字，最长 32 字符；填与 SnapBridge 相同的名字，相机将视为同一设备</string>
+    <string name="fixed_device_id_label">固定设备标识（可选，8或16位十六进制）</string>
+    <string name="fixed_device_id_placeholder">如 445D4B24 或 445D4B24981064F7；16位=设备ID+nonce</string>
+    <string name="fixed_device_id_support">填入 SnapBridge 的完整设备标识（16位=设备ID+nonce）可与 SnapBridge 无缝切换；8位仅固定设备ID</string>
+
+    <!-- Camera dialogs -->
+    <string name="dialog_select_camera_to_pair">选择要配对的相机</string>
+    <string name="dialog_no_camera_found">未发现相机，请确认相机已进入配对模式</string>
+    <string name="dialog_already_paired_hint">已有配对记录，选择后可直接切换连接</string>
+    <string name="dialog_select_saved_camera">选择已保存的相机</string>
+    <string name="dialog_no_saved_cameras">暂无已保存的相机，请先配对</string>
+    <string name="default_at_startup">✓ 启动时默认连接</string>
+    <string name="dialog_delete_camera_title">删除相机</string>
+    <string name="dialog_delete_camera_message">确定要删除 %1$s 吗？删除后需要重新配对才能连接。</string>
+    <plurals name="dialog_saved_count_hint">
+        <item quantity="other">已保存 %1$d 台相机。可点「设为默认」选择启动时自动连接的相机，点「删除」移除。</item>
+    </plurals>
+
+    <!-- Service logs -->
+    <string name="log_not_ready_cannot_send_gps">未就绪 - 无法发送 GPS</string>
+    <string name="log_gps_sent_manually">已手动发送 GPS</string>
+    <string name="log_no_fix_sending_fallback">暂无定位，发送兜底数据</string>
+    <string name="log_removed_startup_default">已取消 %1$s 的启动默认连接</string>
+    <string name="log_set_startup_default">已将 %1$s 设为启动时默认连接</string>
+    <string name="log_deleted_camera">已删除 %1$s</string>
+    <string name="log_gps_sent_coords">已发送 GPS (%1$.5f, %2$.5f)</string>
+    <string name="log_gps_write_timeout">GPS 写入超时，已恢复就绪</string>
+    <string name="log_gps_write_success">GPS 发送成功</string>
+    <string name="log_no_location_source">没有可用的定位源</string>
+    <string name="log_location_tracking_enabled">已开启定位追踪（省电模式）</string>
+    <string name="log_missing_location_permission">缺少定位权限，无法获取 GPS</string>
+    <string name="log_multiple_cameras_no_default">已保存多台相机且未设置启动默认连接，跳过自动连接</string>
+    <string name="log_service_reconnect">服务重启，正在重连 %1$s</string>
+
+    <!-- Pairing session logs -->
+    <string name="log_scan_failed">扫描失败: %1$d</string>
+    <string name="log_bluetooth_scanner_unavailable">蓝牙扫描器不可用</string>
+    <string name="log_repairing_manual_hint">重新配对失败，请到系统 设置->蓝牙 手动点击相机完成配对</string>
+    <string name="log_pairing_removed_or_failed">配对已移除/失败</string>
+    <string name="log_camera_pairing_request">相机配对请求（配对码 %1$s）- 请在系统弹窗确认</string>
+    <string name="log_fixed_id_mismatch_reextract">固定设备标识与相机期望不一致（相机期望0x%1$08X，当前固定0x%2$08X），已自动清除并重新提取</string>
+    <string name="log_paired_record_autocrack">检测到相机已有配对记录（期望设备ID=0x%1$08X），自动破解 SnapBridge 设备标识...</string>
+    <string name="log_paired_record_adopt">相机已有配对记录（设备ID=0x%1$08X），直接采用该ID连接</string>
+    <string name="log_controller_name_generated">已自动生成控制器名称：%1$s</string>
+    <string name="log_autoextract_in_progress">自动提取正在进行中，请稍候...</string>
+    <string name="log_snapbridge_not_found_cannot_extract">未检测到 SnapBridge（%1$s），无法自动提取设备标识</string>
+    <string name="error_snapbridge_not_installed">未安装 SnapBridge，无法自动提取</string>
+    <string name="log_snapbridge_install_time_scanning">SnapBridge 安装时间：%1$s，开始扫描相机广播...</string>
+    <string name="log_autoextract_scan_failed">自动提取：扫描失败（%1$d）</string>
+    <string name="log_autoextract_no_advertisement">自动提取：30 秒内未找到相机广播</string>
+    <string name="log_autoextract_missing_bt_permission">自动提取：缺少蓝牙权限</string>
+    <string name="error_missing_bt_permission">缺少蓝牙权限</string>
+    <string name="log_autoextract_scan_start_failed">自动提取：扫描启动失败 %1$s</string>
+    <string name="log_snapbridge_not_found_install_first">未检测到 SnapBridge（%1$s），无法自动提取设备标识，请先安装 SnapBridge</string>
+    <string name="log_camera_advertises_id_solving">相机广播设备ID=0x%1$08X，反解候选种子...</string>
+    <string name="log_no_candidates_try_alltime">安装时间范围内无候选，尝试全时段（2015 年至今）候选...</string>
+    <string name="log_no_candidates_failed">无任何候选种子，自动提取失败</string>
+    <string name="error_no_candidate_device_id">未能反解出候选设备标识</string>
+    <string name="log_alltime_candidates_count">全时段共 %1$d 个候选（较慢），开始测试...</string>
+    <string name="log_candidates_found">找到 %1$d 个候选（按时间排序），开始测试...</string>
+    <string name="log_all_candidates_rejected">所有候选均被相机拒绝，未能提取设备标识</string>
+    <string name="log_testing_candidate">测试候选 %1$s（种子时间 %2$s）</string>
+    <string name="log_scanning_saved_camera">正在扫描已保存的相机...</string>
+    <string name="log_camera_found_expects_id">检测到相机广播：期望设备ID=0x%1$08X（%2$s，RSSI=%3$d）</string>
+    <string name="log_device_id_mismatch_adopt">设备ID不匹配（已保存0x%1$08X，相机期望0x%2$08X），自动采用相机ID，无需删除配对记录</string>
+    <string name="log_mtu_set">MTU 已调整到 %1$d</string>
+    <string name="error_camera_disconnected">相机已断开</string>
+    <string name="log_connection_rejected_rescan">连接被相机拒绝，自动重新扫描以采用相机期望的设备ID（第 %1$d/2 次）</string>
+    <string name="log_bluetooth_error">蓝牙错误: %1$s</string>
+    <string name="log_cannot_connect_hint">无法连接相机：请确认相机已开机并进入配对模式后重试</string>
+    <string name="log_stage1_sent_fixed_id">已发送配对第 1 阶段（使用指定设备ID=0x%1$08X）</string>
+    <string name="log_stage1_sent">已发送配对第 1 阶段</string>
+    <string name="log_autoextract_success">✅ 自动提取成功！相机接受了设备标识 %1$s，已保存并继续连接</string>
+    <string name="log_salt_verification_failed">盐校验失败 - 握手中止</string>
+    <string name="log_stage3_sent">已发送配对第 3 阶段</string>
+    <string name="log_camera_serial">相机序列号: %1$s</string>
+    <string name="log_unexpected_pairing_data">意外的配对数据（步骤 %1$d）</string>
+    <string name="log_writing_controller_name">写入控制器名称: %1$s</string>
+    <string name="log_write_failed">写入失败: status=%1$d</string>
+    <string name="log_candidate_rejected_testing_next">候选被相机拒绝(status=%1$d)，1.5 秒后测试下一个...</string>
+    <string name="log_pairing_write_rejected_retry">配对写入被相机拒绝(status=%1$d)（第 %2$d/2 次），1 秒后自动重试...</string>
+    <string name="log_disconnected_reconnecting">连接已断开，先重新连接...</string>
+    <string name="bond_state_paired">已配对(12)</string>
+    <string name="bond_state_pairing">配对中(11)</string>
+    <string name="bond_state_not_paired">未配对(10)</string>
+    <string name="log_camera_rejected_pairing_write">相机拒绝了配对写入(status=%1$d)。当前蓝牙配对状态: %2$s。</string>
+    <string name="log_rejected_with_fixed_identity">已使用固定标识(device=0x%1$08X,nonce=0x%2$08X)仍被拒绝：请确认该标识与相机端配对记录一致</string>
+    <string name="log_pairing_rejected_checklist">请检查：1) 相机已开机且未连接其他设备；2) 若刚用过 SnapBridge，请在固定设备标识中填入 SnapBridge 的完整16位标识（设备ID+nonce）</string>
+    <string name="log_pairing_timeout">配对超时：未完成蓝牙配对。请确认相机处于配对模式后重试，或在系统 设置->蓝牙 中手动点击相机完成配对</string>
+    <string name="log_camera_ready">相机就绪</string>
+    <string name="log_stale_pairing_removing">检测到旧配对记录，正在移除并重新配对...</string>
+    <string name="log_stale_pairing_remove_timeout">移除旧配对超时，请到系统 设置->蓝牙 删除相机配对记录后重试</string>
+    <string name="log_stale_pairing_remove_failed">移除旧配对失败，请到系统 设置->蓝牙 手动删除相机配对记录</string>
+    <string name="log_camera_paired_continuing">相机已完成配对，继续连接...</string>
+    <string name="log_found_camera_requesting_pairing">发现相机 (%1$s)，请求配对...</string>
+    <string name="log_pairing_request_not_confirmed">配对请求未确认：若手机无配对弹窗，请到系统 设置->蓝牙 手动点击相机完成配对</string>
+    <string name="log_repeated_pairing_failures">多次配对失败，已停止。请到系统 设置->蓝牙 手动配对，或确认相机已开机</string>
+    <string name="error_classic_pairing_failed">经典蓝牙配对失败</string>
+    <string name="log_pairing_request_failed_retry">配对请求失败，重试发现...</string>
+    <string name="log_searching_camera_bt">正在通过蓝牙搜索相机...</string>
+    <string name="log_found_paired_camera_switch">发现已配对相机（设备ID=0x%1$08X），选择后可直接切换连接</string>
+</resources>

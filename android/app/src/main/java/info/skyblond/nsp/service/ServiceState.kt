@@ -1,6 +1,7 @@
 package info.skyblond.nsp.service
 
-import info.skyblond.nsp.ui.L10n
+import android.content.Context
+import info.skyblond.nsp.R
 
 sealed class ConnectionState {
     data object Idle : ConnectionState()
@@ -13,18 +14,17 @@ sealed class ConnectionState {
     data object Busy : ConnectionState()
     data class Error(val reason: String) : ConnectionState()
 
-    val label: String
-        get() = when (this) {
-            is Idle -> L10n.t("空闲", "Idle")
-            is Scanning -> L10n.t("扫描中...", "Scanning...")
-            is Connecting -> L10n.t("连接中...", "Connecting...")
-            is Discovering -> L10n.t("发现服务中...", "Discovering...")
-            is Pairing -> L10n.t("配对中...", "Pairing...")
-            is Bonding -> L10n.t("经典蓝牙配对中...", "Classic bonding...")
-            is Ready -> L10n.t("就绪", "Ready")
-            is Busy -> L10n.t("忙碌", "Busy")
-            is Error -> L10n.t("错误: ", "Error: ") + reason
-        }
+    fun label(context: Context): String = when (this) {
+        is Idle -> context.getString(R.string.state_idle)
+        is Scanning -> context.getString(R.string.state_scanning)
+        is Connecting -> context.getString(R.string.state_connecting)
+        is Discovering -> context.getString(R.string.state_discovering)
+        is Pairing -> context.getString(R.string.state_pairing)
+        is Bonding -> context.getString(R.string.state_bonding)
+        is Ready -> context.getString(R.string.state_ready)
+        is Busy -> context.getString(R.string.state_busy)
+        is Error -> context.getString(R.string.state_error_prefix) + reason
+    }
 }
 
 data class GpsState(

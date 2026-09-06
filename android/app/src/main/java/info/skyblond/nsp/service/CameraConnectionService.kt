@@ -18,8 +18,8 @@ import android.util.Log
 import info.skyblond.nsp.ble.GeoPayloadGenerator
 import info.skyblond.nsp.data.DiscoveredCamera
 import info.skyblond.nsp.data.PairedCamera
+import info.skyblond.nsp.R
 import info.skyblond.nsp.data.SettingsRepository
-import info.skyblond.nsp.ui.L10n
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import kotlinx.coroutines.CoroutineScope
@@ -180,18 +180,18 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
     fun sendGeoOnce() {
         serviceScope.launch {
             if (state.value != ConnectionState.Ready) {
-                logEvent(L10n.t("未就绪 - 无法发送 GPS", "Not ready - cannot send GPS"))
+                logEvent(getString(R.string.log_not_ready_cannot_send_gps))
                 return@launch
             }
             val loc = lastLocation
             if (loc != null) {
                 sendGeo(loc)
-                logEvent(L10n.t("已手动发送 GPS", "GPS sent manually"))
+                logEvent(getString(R.string.log_gps_sent_manually))
             } else {
                 val payload = GeoPayloadGenerator.buildFake()
                 pairingSession.writeGeo(payload)
                 updateServiceState(ConnectionState.Busy)
-                logEvent(L10n.t("暂无定位，发送兜底数据", "No fix yet; sending fallback data"))
+                logEvent(getString(R.string.log_no_fix_sending_fallback))
             }
         }
     }
@@ -202,10 +202,10 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
             val isDefault = settingsRepository.defaultConnectCameraName() == camera.name
             if (isDefault) {
                 settingsRepository.setDefaultConnectCameraName(null)
-                logEvent(L10n.t("已取消 ${camera.name} 的启动默认连接", "Removed ${camera.name} as the startup default"))
+                logEvent(getString(R.string.log_removed_startup_default, camera.name))
             } else {
                 settingsRepository.setDefaultConnectCameraName(camera.name)
-                logEvent(L10n.t("已将 ${camera.name} 设为启动时默认连接", "Set ${camera.name} as the startup default"))
+                logEvent(getString(R.string.log_set_startup_default, camera.name))
             }
             _defaultCameraName.value = settingsRepository.defaultConnectCameraName()
         }
@@ -217,7 +217,7 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
             settingsRepository.removeCamera(camera)
             _defaultCameraName.value = settingsRepository.defaultConnectCameraName()
             refreshSavedCameras()
-            logEvent(L10n.t("已删除 ${camera.name}", "Deleted ${camera.name}"))
+            logEvent(getString(R.string.log_deleted_camera, camera.name))
         }
     }
 
@@ -263,13 +263,13 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
         lastSentTime = System.currentTimeMillis()
         _gpsState.update { it.copy(lastSentTime = lastSentTime) }
         updateServiceState(ConnectionState.Busy)
-        logEvent(L10n.t("已发送 GPS (%.5f, %.5f)", "GPS sent (%.5f, %.5f)").format(location.latitude, location.longitude))
+        logEvent(getString(R.string.log_gps_sent_coords, location.latitude, location.longitude))
         geoTimeoutJob?.cancel()
         geoTimeoutJob = serviceScope.launch {
             delay(10_000)
             if (state.value is ConnectionState.Busy) {
                 updateServiceState(ConnectionState.Ready)
-                logEvent(L10n.t("GPS 写入超时，已恢复就绪", "GPS write timed out; back to ready"))
+                logEvent(getString(R.string.log_gps_write_timeout))
             }
         }
     }
@@ -282,7 +282,7 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
         val hasNetwork = lm.getProvider(LocationManager.NETWORK_PROVIDER) != null
         if (!hasGps && !hasNetwork) {
             _gpsState.value = GpsState()
-            logEvent(L10n.t("没有可用的定位源", "No location source available"))
+            logEvent(getString(R.string.log_no_location_source))
             return
         }
 
@@ -315,9 +315,9 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
                     Looper.getMainLooper()
                 )
             }
-            logEvent(L10n.t("已开启定位追踪（省电模式）", "Location tracking enabled (battery saver)"))
+            logEvent(getString(R.string.log_location_tracking_enabled))
         } catch (e: SecurityException) {
-            logEvent(L10n.t("缺少定位权限，无法获取 GPS", "Missing location permission; cannot get GPS"))
+            logEvent(getString(R.string.log_missing_location_permission))
         }
     }
 
@@ -364,11 +364,11 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
             ?: if (cameras.size == 1) cameras.first() else null
             ?: run {
                 if (cameras.size > 1) {
-                    logEvent(L10n.t("已保存多台相机且未设置启动默认连接，跳过自动连接", "Multiple cameras saved with no startup default; skipping auto-connect"))
+                    logEvent(getString(R.string.log_multiple_cameras_no_default))
                 }
                 return
             }
-        logEvent(L10n.t("服务重启，正在重连 ${camera.name}", "Service restarted; reconnecting ${camera.name}"))
+        logEvent(getString(R.string.log_service_reconnect, camera.name))
         connectToSavedCamera(camera)
     }
 
@@ -389,7 +389,7 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
      * giving up.
      */
     private fun startForegroundCompat() {
-        val notification = NotificationHelper.build(this, state.value.label)
+        val notification = NotificationHelper.build(this, state.value.label(this))
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             startForeground(NotificationHelper.NOTIFICATION_ID, notification)
             return
@@ -428,7 +428,7 @@ class CameraConnectionService : Service(), NikonPairingSession.Host {
 
     private fun updateServiceState(newState: ConnectionState) {
         _state.value = newState
-        NotificationHelper.update(this, newState.label)
+        NotificationHelper.update(this, newState.label(this))
     }
 
     private fun logEvent(message: String) {

@@ -10,7 +10,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import info.skyblond.nsp.MainActivity
 import info.skyblond.nsp.R
-import info.skyblond.nsp.ui.L10n
 
 /** Builds and updates the foreground-service notification. */
 object NotificationHelper {
@@ -22,10 +21,10 @@ object NotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                L10n.t("相机连接", "Camera connection"),
+                context.getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = L10n.t("保持与尼康相机的连接", "Keeps the connection to your Nikon camera")
+                description = context.getString(R.string.notification_channel_description)
             }
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
@@ -50,11 +49,11 @@ object NotificationHelper {
             PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(L10n.t("尼康智能GPS", "Nikon Smart GPS"))
+            .setContentTitle(context.getString(R.string.app_name))
             .setContentText(statusText)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(contentIntent)
-            .addAction(R.drawable.ic_launcher_foreground, L10n.t("断开", "Disconnect"), disconnectIntent)
+            .addAction(R.drawable.ic_launcher_foreground, context.getString(R.string.action_disconnect), disconnectIntent)
             .setOngoing(true)
             .build()
     }

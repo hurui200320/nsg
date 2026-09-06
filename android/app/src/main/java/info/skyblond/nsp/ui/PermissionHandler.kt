@@ -28,9 +28,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import info.skyblond.nsp.R
 
 object RequiredPermissions {
 
@@ -118,19 +120,19 @@ fun BluetoothEnableGate(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = L10n.t("连接相机需要开启蓝牙。", "Bluetooth is required to connect to the camera."),
+                text = stringResource(R.string.bt_required_message),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = { launcher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) }) {
-                Text(L10n.t("开启蓝牙", "Enable Bluetooth"))
+                Text(stringResource(R.string.bt_enable))
             }
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = {
                 context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
             }) {
-                Text(L10n.t("打开蓝牙设置", "Open Bluetooth settings"))
+                Text(stringResource(R.string.bt_open_settings))
             }
         }
     }
@@ -149,16 +151,13 @@ private fun PermissionRationale(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = L10n.t(
-                "本应用需要蓝牙和定位权限，用于扫描并连接尼康相机。",
-                "This app needs Bluetooth and location permissions to scan for and connect to your Nikon camera."
-            ),
+            text = stringResource(R.string.permission_rationale),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRequest) {
-            Text(L10n.t("授予权限", "Grant permissions"))
+            Text(stringResource(R.string.permission_grant))
         }
     }
 }

@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.content.ContextCompat
+import info.skyblond.nsp.R
 import info.skyblond.nsp.ble.BleEvent
 import info.skyblond.nsp.ble.CameraBleManager
 import info.skyblond.nsp.ble.protocol.NikonPairingEngine
@@ -26,7 +27,6 @@ import info.skyblond.nsp.ble.protocol.SnapBridgeIdSolver
 import info.skyblond.nsp.data.DiscoveredCamera
 import info.skyblond.nsp.data.PairedCamera
 import info.skyblond.nsp.data.SettingsRepository
-import info.skyblond.nsp.ui.L10n
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -114,7 +114,7 @@ class NikonPairingSession(
 
         override fun onScanFailed(errorCode: Int) {
             Log.w(TAG, "Scan failed: errorCode=$errorCode")
-            host.log(L10n.t("扫描失败: $errorCode", "Scan failed: $errorCode"))
+            host.log(context.getString(R.string.log_scan_failed, errorCode))
             host.updateState(ConnectionState.Error("Scan failed: $errorCode"))
         }
     }
@@ -168,12 +168,12 @@ class NikonPairingSession(
                                 val created = device.createBond()
                                 Log.d(TAG, "createBond() after removal returned $created")
                                 if (!created) {
-                                    host.log(L10n.t("重新配对失败，请到系统 设置->蓝牙 手动点击相机完成配对", "Re-pairing failed. Pair the camera manually in System Settings -> Bluetooth."))
+            host.log(context.getString(R.string.log_repairing_manual_hint))
                                 }
                                 return
                             }
                             Log.w(TAG, "Bonding failed for ${device.address}; waiting for discovery to find camera again")
-                            host.log(L10n.t("配对已移除/失败", "Pairing removed/failed"))
+                            host.log(context.getString(R.string.log_pairing_removed_or_failed))
                         }
                     }
                 }
@@ -191,7 +191,7 @@ class NikonPairingSession(
                     val key = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_KEY, 0)
                     Log.d(TAG, "Pairing request from ${device?.address}: variant=$variant key=$key")
                     val passkey = String.format("%06d", key)
-                    host.log(L10n.t("相机配对请求（配对码 $passkey）- 请在系统弹窗确认", "Camera pairing request (code $passkey) - confirm in the system dialog"))
+                    host.log(context.getString(R.string.log_camera_pairing_request, passkey))
                 }
             }
         }
@@ -228,7 +228,7 @@ class NikonPairingSession(
             host.updateState(ConnectionState.Scanning)
             val bleScanner = scanner
             if (bleScanner == null) {
-                host.log(L10n.t("蓝牙扫描器不可用", "Bluetooth scanner unavailable"))
+                host.log(context.getString(R.string.log_bluetooth_scanner_unavailable))
                 host.updateState(ConnectionState.Error("Bluetooth scanner unavailable"))
                 return@launch
             }
@@ -289,10 +289,11 @@ class NikonPairingSession(
                 // camera was re-paired with another device). Clear it so the auto-extraction
                 // below can recover the correct identity instead of failing with status 133.
                 host.log(
-                    L10n.t(
-                        "固定设备标识与相机期望不一致（相机期望0x%08X，当前固定0x%08X），已自动清除并重新提取",
-                        "Fixed device ID no longer matches the camera (camera expects 0x%08X, fixed 0x%08X); cleared it and re-extracting"
-                    ).format(advertised, fixedDevice)
+                    context.getString(
+                        R.string.log_fixed_id_mismatch_reextract,
+                        advertised,
+                        fixedDevice
+                    )
                 )
                 settings.setFixedDeviceId(null)
             }
@@ -301,7 +302,7 @@ class NikonPairingSession(
                 // expects) - most likely SnapBridge's. Auto-crack the full SnapBridge
                 // DeviceID and connect with it, so no record deletion is needed.
                 host.log(
-                    L10n.t("检测到相机已有配对记录（期望设备ID=0x%08X），自动破解 SnapBridge 设备标识...", "Camera already has a pairing record (expects device ID=0x%08X). Auto-cracking the SnapBridge device ID...").format(advertised)
+                    context.getString(R.string.log_paired_record_autocrack, advertised)
                 )
                 onAutoExtractCameraFound(
                     camera = PairedCamera(
@@ -318,7 +319,7 @@ class NikonPairingSession(
             }
             adoptedDeviceId = advertised
             if (advertised != null) {
-                host.log(L10n.t("相机已有配对记录（设备ID=0x%08X），直接采用该ID连接", "Camera already paired (device ID=0x%08X); connecting with that ID directly").format(advertised))
+                host.log(context.getString(R.string.log_paired_record_adopt, advertised))
             }
             currentDevice = remoteDevice(camera.address)
             controllerName = settings.spoofControllerName() ?: BleHelpers.DEFAULT_CONTROLLER_NAME
@@ -353,7 +354,7 @@ class NikonPairingSession(
         if (!settings.spoofControllerName().isNullOrBlank()) return
         val name = BleHelpers.generateSnapBridgeControllerName()
         settings.setSpoofControllerName(name)
-        host.log(L10n.t("已自动生成控制器名称：$name", "Auto-generated controller name: $name"))
+        host.log(context.getString(R.string.log_controller_name_generated, name))
     }
 
     /**
@@ -367,19 +368,19 @@ class NikonPairingSession(
     fun startAutoExtract(camera: PairedCamera) {
         scope.launch {
             if (autoExtractActive) {
-                host.log(L10n.t("自动提取正在进行中，请稍候...", "Auto-extraction in progress, please wait..."))
+                host.log(context.getString(R.string.log_autoextract_in_progress))
                 return@launch
             }
             val installTime = snapBridgeInstallTime()
             if (installTime == null) {
-                host.log(L10n.t("未检测到 SnapBridge（$SNAPBRIDGE_PACKAGE），无法自动提取设备标识", "SnapBridge ($SNAPBRIDGE_PACKAGE) not found; cannot auto-extract the device ID"))
-                host.updateState(ConnectionState.Error(L10n.t("未安装 SnapBridge，无法自动提取", "SnapBridge not installed; cannot auto-extract")))
+                host.log(context.getString(R.string.log_snapbridge_not_found_cannot_extract, SNAPBRIDGE_PACKAGE))
+                host.updateState(ConnectionState.Error(context.getString(R.string.error_snapbridge_not_installed)))
                 return@launch
             }
             autoExtractCamera = camera
             autoExtractActive = true
             autoExtractQueue.clear()
-            host.log(L10n.t("SnapBridge 安装时间：${BleHelpers.formatTimestamp(installTime)}，开始扫描相机广播...", "SnapBridge installed: ${BleHelpers.formatTimestamp(installTime)}. Scanning for the camera..."))
+            host.log(context.getString(R.string.log_snapbridge_install_time_scanning, BleHelpers.formatTimestamp(installTime)))
             scanForAutoExtract(camera)
         }
     }
@@ -394,7 +395,7 @@ class NikonPairingSession(
     private fun scanForAutoExtract(camera: PairedCamera) {
         val bleScanner = scanner
         if (bleScanner == null) {
-            host.log(L10n.t("蓝牙扫描器不可用", "Bluetooth scanner unavailable"))
+            host.log(context.getString(R.string.log_bluetooth_scanner_unavailable))
             autoExtractActive = false
             return
         }
@@ -420,9 +421,9 @@ class NikonPairingSession(
 
             override fun onScanFailed(errorCode: Int) {
                 Log.w(TAG, "Auto-extract scan failed: $errorCode")
-                host.log(L10n.t("自动提取：扫描失败（$errorCode）", "Auto-extract: scan failed ($errorCode)"))
+                host.log(context.getString(R.string.log_autoextract_scan_failed, errorCode))
                 autoExtractActive = false
-                host.updateState(ConnectionState.Error(L10n.t("扫描失败: $errorCode", "Scan failed: $errorCode")))
+                host.updateState(ConnectionState.Error(context.getString(R.string.log_scan_failed, errorCode)))
             }
         }
         reconnectScanCallback = callback
@@ -437,16 +438,16 @@ class NikonPairingSession(
                     try { bleScanner.stopScan(callback) } catch (_: Exception) {}
                     reconnectScanCallback = null
                     autoExtractActive = false
-                    host.log(L10n.t("自动提取：30 秒内未找到相机广播", "Auto-extract: no camera advertisement within 30s"))
+                    host.log(context.getString(R.string.log_autoextract_no_advertisement))
                     host.updateState(ConnectionState.Idle)
                 }
             }
         } catch (e: SecurityException) {
-            host.log(L10n.t("自动提取：缺少蓝牙权限", "Auto-extract: missing Bluetooth permission"))
+            host.log(context.getString(R.string.log_autoextract_missing_bt_permission))
             autoExtractActive = false
-            host.updateState(ConnectionState.Error(L10n.t("缺少蓝牙权限", "Missing Bluetooth permission")))
+            host.updateState(ConnectionState.Error(context.getString(R.string.error_missing_bt_permission)))
         } catch (e: Exception) {
-            host.log(L10n.t("自动提取：扫描启动失败 ${e.message}", "Auto-extract: failed to start scan ${e.message}"))
+            host.log(context.getString(R.string.log_autoextract_scan_start_failed, e.message))
             autoExtractActive = false
         }
     }
@@ -457,14 +458,11 @@ class NikonPairingSession(
             autoExtractActive = false
             autoExtractOriginalFixedId = null
             host.log(
-                L10n.t(
-                    "未检测到 SnapBridge（$SNAPBRIDGE_PACKAGE），无法自动提取设备标识，请先安装 SnapBridge",
-                    "SnapBridge ($SNAPBRIDGE_PACKAGE) not found; install it first to auto-extract the device ID"
-                )
+                context.getString(R.string.log_snapbridge_not_found_install_first, SNAPBRIDGE_PACKAGE)
             )
             host.updateState(
                 ConnectionState.Error(
-                    L10n.t("未安装 SnapBridge，无法自动提取", "SnapBridge not installed; cannot auto-extract")
+                    context.getString(R.string.error_snapbridge_not_installed)
                 )
             )
             return
@@ -472,21 +470,21 @@ class NikonPairingSession(
         // Remember the previous fixed ID so we can restore it if every candidate is rejected.
         autoExtractOriginalFixedId = settings.fixedDeviceIdRaw()
         val now = System.currentTimeMillis()
-        host.log(L10n.t("相机广播设备ID=0x%08X，反解候选种子...", "Camera advertises device ID=0x%08X. Solving candidate seeds...").format(advertisedDevice))
+        host.log(context.getString(R.string.log_camera_advertises_id_solving, advertisedDevice))
         val candidates = SnapBridgeIdSolver.candidatesFor(advertisedDevice, installTime, now)
         if (candidates.isEmpty()) {
-            host.log(L10n.t("安装时间范围内无候选，尝试全时段（2015 年至今）候选...", "No candidates in the install window; trying all-time candidates (2015-present)..."))
+            host.log(context.getString(R.string.log_no_candidates_try_alltime))
             val all = SnapBridgeIdSolver.candidatesFor(advertisedDevice, 1_420_070_400_000L, now)
             if (all.isEmpty()) {
-                host.log(L10n.t("无任何候选种子，自动提取失败", "No candidate seeds; auto-extraction failed"))
+                host.log(context.getString(R.string.log_no_candidates_failed))
                 autoExtractActive = false
-                host.updateState(ConnectionState.Error(L10n.t("未能反解出候选设备标识", "Could not solve any candidate device ID")))
+                host.updateState(ConnectionState.Error(context.getString(R.string.error_no_candidate_device_id)))
                 return
             }
-            host.log(L10n.t("全时段共 ${all.size} 个候选（较慢），开始测试...", "${all.size} all-time candidate(s) (slow); starting tests..."))
+            host.log(context.getString(R.string.log_alltime_candidates_count, all.size))
             autoExtractQueue.addAll(all)
         } else {
-            host.log(L10n.t("找到 ${candidates.size} 个候选（按时间排序），开始测试...", "Found ${candidates.size} candidate(s); starting tests..."))
+            host.log(context.getString(R.string.log_candidates_found, candidates.size))
             autoExtractQueue.addAll(candidates)
         }
         autoExtractCamera = camera
@@ -504,11 +502,11 @@ class NikonPairingSession(
             // wrong fixed ID behind that would break future connections.
             settings.setFixedDeviceId(autoExtractOriginalFixedId)
             autoExtractOriginalFixedId = null
-            host.log(L10n.t("所有候选均被相机拒绝，未能提取设备标识", "All candidates rejected by the camera; extraction failed"))
+            host.log(context.getString(R.string.log_all_candidates_rejected))
             host.updateState(ConnectionState.Idle)
             return
         }
-        host.log(L10n.t("测试候选 ${candidate.fixedIdentityHex}（种子时间 ${BleHelpers.formatTimestamp(candidate.seed)}）", "Testing candidate ${candidate.fixedIdentityHex} (seed time ${BleHelpers.formatTimestamp(candidate.seed)})"))
+        host.log(context.getString(R.string.log_testing_candidate, candidate.fixedIdentityHex, BleHelpers.formatTimestamp(candidate.seed)))
         settings.setFixedDeviceId(candidate.deviceIdHex)
         pairingMode = PairingMode.RECONNECT
         savedCamera = camera
@@ -528,7 +526,7 @@ class NikonPairingSession(
             return
         }
         host.updateState(ConnectionState.Connecting)
-        host.log(L10n.t("正在扫描已保存的相机...", "Scanning for the saved camera..."))
+        host.log(context.getString(R.string.log_scanning_saved_camera))
         reconnectScanCallback?.let { try { bleScanner.stopScan(it) } catch (_: Exception) {} }
 
         lastAdvertisedDevice = null
@@ -557,8 +555,12 @@ class NikonPairingSession(
                     if (advertised != lastAdvertisedDevice) {
                         lastAdvertisedDevice = advertised
                         host.log(
-                            L10n.t("检测到相机广播：期望设备ID=0x%08X（%s，RSSI=%d）", "Camera found: expects device ID=0x%08X (%s, RSSI=%d)")
-                                .format(advertised, result.device.address, result.rssi)
+                            context.getString(
+                                R.string.log_camera_found_expects_id,
+                                advertised,
+                                result.device.address,
+                                result.rssi
+                            )
                         )
                     }
                     if (settings.fixedDeviceId() != null) {
@@ -569,8 +571,11 @@ class NikonPairingSession(
                             "Adopting advertised device ID 0x%08X (saved was 0x%08X)".format(advertised, camera.device)
                         )
                         host.log(
-                            L10n.t("设备ID不匹配（已保存0x%08X，相机期望0x%08X），自动采用相机ID，无需删除配对记录", "Device ID mismatch (saved 0x%08X, camera expects 0x%08X); adopting the camera ID, no need to delete pairings")
-                                .format(camera.device, advertised)
+                            context.getString(
+                                R.string.log_device_id_mismatch_adopt,
+                                camera.device,
+                                advertised
+                            )
                         )
                         val adopted = camera.copy(device = advertised)
                         settings.saveCamera(adopted)
@@ -677,7 +682,7 @@ class NikonPairingSession(
 
                 is BleEvent.MtuChanged -> {
                     Log.d(TAG, "onEvent: MtuChanged mtu=${event.mtu}")
-                    host.log(L10n.t("MTU 已调整到 ${event.mtu}", "MTU set to ${event.mtu}"))
+                    host.log(context.getString(R.string.log_mtu_set, event.mtu))
                 }
                 is BleEvent.PairIndication -> {
                     Log.d(TAG, "onEvent: PairIndication ${event.data.size} bytes")
@@ -698,7 +703,7 @@ class NikonPairingSession(
                     } else if (reconnectScanCallback != null) {
                         Log.d(TAG, "Disconnected while reconnect scan in flight - keeping state")
                     } else {
-                        host.updateState(ConnectionState.Error(L10n.t("相机已断开", "Camera disconnected")))
+                        host.updateState(ConnectionState.Error(context.getString(R.string.error_camera_disconnected)))
                     }
                     host.onSessionDisconnected()
                 }
@@ -717,13 +722,13 @@ class NikonPairingSession(
                         // camera advertises the ID it expects, and we adopt it automatically.
                         reconnectRetryCount++
                         host.log(
-                            L10n.t("连接被相机拒绝，自动重新扫描以采用相机期望的设备ID（第 ${reconnectRetryCount}/2 次）", "Connection rejected by camera; rescanning to adopt the expected device ID (attempt ${reconnectRetryCount}/2)")
+                            context.getString(R.string.log_connection_rejected_rescan, reconnectRetryCount)
                         )
                         savedCamera?.let { startReconnectScan(it) }
                     } else {
-                        host.log(L10n.t("蓝牙错误: ${event.message}", "Bluetooth error: ${event.message}"))
+                        host.log(context.getString(R.string.log_bluetooth_error, event.message))
                         if (event.message.contains("Connection state change")) {
-                            host.log(L10n.t("无法连接相机：请确认相机已开机并进入配对模式后重试", "Cannot connect: make sure the camera is on and in pairing mode, then retry"))
+                            host.log(context.getString(R.string.log_cannot_connect_hint))
                         }
                         host.updateState(ConnectionState.Error(event.message))
                     }
@@ -774,9 +779,9 @@ class NikonPairingSession(
             bleManager?.writePairMessage(it.encode())
         }
         if (override != null) {
-            host.log(L10n.t("已发送配对第 1 阶段（使用指定设备ID=0x%08X）", "Pairing stage 1 sent (using fixed device ID=0x%08X)").format(override))
+            host.log(context.getString(R.string.log_stage1_sent_fixed_id, override))
         } else {
-            host.log(L10n.t("已发送配对第 1 阶段", "Pairing stage 1 sent"))
+            host.log(context.getString(R.string.log_stage1_sent))
         }
     }
 
@@ -791,7 +796,10 @@ class NikonPairingSession(
                     val fixed = settings.fixedDeviceIdRaw()
                     Log.d(TAG, "Auto-extract: camera accepted candidate $fixed")
                     host.log(
-                        L10n.t("✅ 自动提取成功！相机接受了设备标识 ${fixed?.uppercase() ?: "?"}，已保存并继续连接", "✅ Auto-extraction succeeded! The camera accepted the device ID ${fixed?.uppercase() ?: "?"}; saved and continuing")
+                        context.getString(
+                            R.string.log_autoextract_success,
+                            fixed?.uppercase() ?: "?"
+                        )
                     )
                 }
                 val stage2 = PairingMessage.decode(data)
@@ -802,20 +810,20 @@ class NikonPairingSession(
                 )
                 if (stage3 == null) {
                     Log.e(TAG, "Salt verification failed - handshake aborted")
-                    host.log(L10n.t("盐校验失败 - 握手中止", "Salt verification failed - handshake aborted"))
+                    host.log(context.getString(R.string.log_salt_verification_failed))
                     host.updateState(ConnectionState.Error("Blowfish salt mismatch"))
                     return
                 }
                 Log.d(TAG, "Sending stage 3: device=${stage3.device.toHexString()} nonce=${stage3.nonce.toHexString()}")
                 bleManager?.writePairMessage(stage3.encode())
                 pairingStep = 2
-                host.log(L10n.t("已发送配对第 3 阶段", "Pairing stage 3 sent"))
+                host.log(context.getString(R.string.log_stage3_sent))
             }
             2 -> {
                 val stage4 = PairingMessage.decode(data)
                 val serial = pairingEngine.extractSerial(stage4)
                 Log.d(TAG, "Received stage 4: serial='$serial' timestamp=${stage4.timestamp.toHexString()} raw=${data.toHex()}")
-                host.log(L10n.t("相机序列号: $serial", "Camera serial: $serial"))
+                host.log(context.getString(R.string.log_camera_serial, serial))
                 // SnapBridge/smart-device handshake does not send stage 5; the camera sends the
                 // final 01 00 success notification on NOT1 after stage 4. Wait briefly for it;
                 // if it does not arrive, write the controller ID anyway.
@@ -831,7 +839,7 @@ class NikonPairingSession(
             }
             else -> {
                 Log.w(TAG, "Unexpected PAIR indication in step $pairingStep")
-                host.log(L10n.t("意外的配对数据（步骤 $pairingStep）", "Unexpected pairing data (step $pairingStep)"))
+                host.log(context.getString(R.string.log_unexpected_pairing_data, pairingStep))
             }
         }
     }
@@ -876,7 +884,7 @@ class NikonPairingSession(
         nameBytes.copyInto(padded, 0, 0, copyLen)
         Log.d(TAG, "writeControllerId: $controllerName -> ${padded.toHex()}")
         bleManager?.writeId(padded)
-        host.log(L10n.t("写入控制器名称: $controllerName", "Writing controller name: $controllerName"))
+        host.log(context.getString(R.string.log_writing_controller_name, controllerName))
 
         // Some cameras (notably Z50II) do not always acknowledge the ID write.
         // Proceed after a short timeout so we don't hang forever.
@@ -894,11 +902,11 @@ class NikonPairingSession(
         Log.d(TAG, "handleWriteDone: uuid=$uuid status=$status step=$pairingStep")
         if (status != android.bluetooth.BluetoothGatt.GATT_SUCCESS) {
             Log.e(TAG, "Write failed on $uuid: status=$status")
-            host.log(L10n.t("写入失败: status=$status", "Write failed: status=$status"))
+            host.log(context.getString(R.string.log_write_failed, status))
             if (uuid == CameraBleManager.PAIR_UUID && pairingStep == 1) {
                 if (autoExtractActive) {
                     Log.d(TAG, "Auto-extract: candidate rejected (status=$status), trying next")
-                    host.log(L10n.t("候选被相机拒绝(status=$status)，1.5 秒后测试下一个...", "Candidate rejected (status=$status); testing the next one in 1.5s..."))
+                    host.log(context.getString(R.string.log_candidate_rejected_testing_next, status))
                     scope.launch {
                         delay(1_500)
                         testNextAutoExtractCandidate()
@@ -908,7 +916,7 @@ class NikonPairingSession(
                 if (stage1RetryCount < 1 && reconnectRetryCount < 2) {
                     stage1RetryCount++
                     reconnectRetryCount++
-                    host.log(L10n.t("配对写入被相机拒绝(status=$status)（第 ${reconnectRetryCount}/2 次），1 秒后自动重试...", "Pairing write rejected (status=$status) (attempt ${reconnectRetryCount}/2); retrying in 1s..."))
+                    host.log(context.getString(R.string.log_pairing_write_rejected_retry, status, reconnectRetryCount))
                     scope.launch {
                         delay(1_000)
                         if (pairingStep != 1) return@launch
@@ -916,7 +924,7 @@ class NikonPairingSession(
                             beginHandshake()
                         } else {
                             Log.d(TAG, "GATT disconnected during stage-1 retry; reconnecting first")
-                            host.log(L10n.t("连接已断开，先重新连接...", "Disconnected; reconnecting first..."))
+                            host.log(context.getString(R.string.log_disconnected_reconnecting))
                             connectCurrentDevice()
                         }
                     }
@@ -924,17 +932,17 @@ class NikonPairingSession(
                 }
                 val bondState = currentDevice?.bondState
                 val bondText = when (bondState) {
-                    BluetoothDevice.BOND_BONDED -> L10n.t("已配对(12)", "Paired (12)")
-                    BluetoothDevice.BOND_BONDING -> L10n.t("配对中(11)", "Pairing (11)")
-                    else -> L10n.t("未配对(10)", "Not paired (10)")
+                    BluetoothDevice.BOND_BONDED -> context.getString(R.string.bond_state_paired)
+                    BluetoothDevice.BOND_BONDING -> context.getString(R.string.bond_state_pairing)
+                    else -> context.getString(R.string.bond_state_not_paired)
                 }
                 val fixed = settings.fixedIdentity()
                 host.log(
-                    L10n.t("相机拒绝了配对写入(status=$status)。当前蓝牙配对状态: $bondText。", "Camera rejected the pairing write (status=$status). Current bond state: $bondText.") +
+                    context.getString(R.string.log_camera_rejected_pairing_write, status, bondText) +
                         (if (fixed?.nonce != null) {
-                            L10n.t("已使用固定标识(device=0x%08X,nonce=0x%08X)仍被拒绝：请确认该标识与相机端配对记录一致", "Rejected even with the fixed identity (device=0x%08X,nonce=0x%08X): make sure it matches the camera's pairing record").format(fixed.device, fixed.nonce)
+                            context.getString(R.string.log_rejected_with_fixed_identity, fixed.device, fixed.nonce)
                         } else {
-                            L10n.t("请检查：1) 相机已开机且未连接其他设备；2) 若刚用过 SnapBridge，请在固定设备标识中填入 SnapBridge 的完整16位标识（设备ID+nonce）", "Check: 1) the camera is on and not connected elsewhere; 2) if you just used SnapBridge, enter its full 16-hex ID (device+nonce) as the fixed device ID")
+                            context.getString(R.string.log_pairing_rejected_checklist)
                         })
                 )
                 host.updateState(ConnectionState.Error("Pairing rejected by camera (status=$status)"))
@@ -952,7 +960,7 @@ class NikonPairingSession(
             }
             CameraBleManager.GEO_UUID -> {
                 host.updateState(ConnectionState.Ready)
-                host.log(L10n.t("GPS 发送成功", "GPS sent"))
+                host.log(context.getString(R.string.log_gps_write_success))
             }
             else -> Unit
         }
@@ -996,7 +1004,7 @@ class NikonPairingSession(
             delay(90_000)
             if (isAwaitingBond) {
                 Log.w(TAG, "Bonding did not complete within 90s")
-                host.log(L10n.t("配对超时：未完成蓝牙配对。请确认相机处于配对模式后重试，或在系统 设置->蓝牙 中手动点击相机完成配对", "Pairing timed out. Make sure the camera is in pairing mode and retry, or pair manually in System Settings -> Bluetooth"))
+                host.log(context.getString(R.string.log_pairing_timeout))
                 isAwaitingBond = false
                 stopClassicDiscovery()
                 host.updateState(ConnectionState.Error("Classic bonding timed out"))
@@ -1031,7 +1039,7 @@ class NikonPairingSession(
         pairingStep = 6
         host.updateState(ConnectionState.Ready)
         host.onSessionReady()
-        host.log(L10n.t("相机就绪", "Camera ready"))
+        host.log(context.getString(R.string.log_camera_ready))
     }
 
     @SuppressLint("MissingPermission")
@@ -1128,14 +1136,14 @@ class NikonPairingSession(
                                     // Remove it and re-pair from scratch so the system dialog and
                                     // the camera passkey prompt both appear.
                                     Log.w(TAG, "NEW mode found stale bond on ${found.address}; removing to re-pair")
-                                    host.log(L10n.t("检测到旧配对记录，正在移除并重新配对...", "Stale pairing detected; removing and re-pairing..."))
+                                    host.log(context.getString(R.string.log_stale_pairing_removing))
                                     reBondAfterRemoval = true
                                     classicDevice = found
                                     bondingTimeoutJob?.cancel()
                                     bondingTimeoutJob = scope.launch {
                                         delay(15_000)
                                         if (isAwaitingBond && classicDevice == found && reBondAfterRemoval) {
-                                            host.log(L10n.t("移除旧配对超时，请到系统 设置->蓝牙 删除相机配对记录后重试", "Failed to remove the stale pairing in time; delete the camera's pairing in System Settings -> Bluetooth and retry"))
+                                            host.log(context.getString(R.string.log_stale_pairing_remove_timeout))
                                         }
                                     }
                                     @Suppress("MissingPermission")
@@ -1143,12 +1151,12 @@ class NikonPairingSession(
                                     Log.d(TAG, "removeBond() returned $removed")
                                     if (!removed) {
                                         reBondAfterRemoval = false
-                                        host.log(L10n.t("移除旧配对失败，请到系统 设置->蓝牙 手动删除相机配对记录", "Could not remove the stale pairing; delete it manually in System Settings -> Bluetooth"))
+                                        host.log(context.getString(R.string.log_stale_pairing_remove_failed))
                                     }
                                     return
                                 }
                                 Log.d(TAG, "Camera already bonded, skipping createBond")
-                                host.log(L10n.t("相机已完成配对，继续连接...", "Camera paired; continuing..."))
+                                host.log(context.getString(R.string.log_camera_paired_continuing))
                                 classicBondComplete = true
                                 isAwaitingBond = false
                                 // The BLE GATT link was dropped after the handshake; reconnect
@@ -1156,12 +1164,12 @@ class NikonPairingSession(
                                 reconnectAfterBonding()
                                 return
                             }
-                            host.log(L10n.t("发现相机 (${foundName ?: found.address})，请求配对...", "Found camera (${foundName ?: found.address}); requesting pairing..."))
+                            host.log(context.getString(R.string.log_found_camera_requesting_pairing, foundName ?: found.address))
                             bondingTimeoutJob?.cancel()
                             bondingTimeoutJob = scope.launch {
                                 delay(20_000)
                                 if (isAwaitingBond && classicDevice == found) {
-                                    host.log(L10n.t("配对请求未确认：若手机无配对弹窗，请到系统 设置->蓝牙 手动点击相机完成配对", "Pairing request not confirmed: if no dialog appeared, pair manually in System Settings -> Bluetooth"))
+                                                    host.log(context.getString(R.string.log_pairing_request_not_confirmed))
                                 }
                             }
                             @Suppress("MissingPermission")
@@ -1173,27 +1181,24 @@ class NikonPairingSession(
                                 if (classicDiscoveryRetryCount >= MAX_CLASSIC_RETRIES) {
                                     Log.w(TAG, "createBond kept failing, giving up classic pairing")
                                     host.log(
-                                        L10n.t(
-                                            "多次配对失败，已停止。请到系统 设置->蓝牙 手动配对，或确认相机已开机",
-                                            "Repeated pairing failures; stopped. Pair manually in System Settings -> Bluetooth or make sure the camera is on"
-                                        )
+                                        context.getString(R.string.log_repeated_pairing_failures)
                                     )
                                     isAwaitingBond = false
                                     stopClassicDiscovery()
-                                    host.updateState(ConnectionState.Error(L10n.t("经典蓝牙配对失败", "Classic pairing failed")))
+                                    host.updateState(ConnectionState.Error(context.getString(R.string.error_classic_pairing_failed)))
                                     return
                                 }
                                 scope.launch {
                                     delay(3_000)
                                     if (isAwaitingBond && classicDevice == found) {
                                         Log.w(TAG, "createBond returned false, retrying discovery")
-                                        host.log(L10n.t("配对请求失败，重试发现...", "Pairing request failed; retrying discovery..."))
+                                        host.log(context.getString(R.string.log_pairing_request_failed_retry))
                                         // Re-arm the pairing timeout for this retry.
                                         bondingTimeoutJob?.cancel()
                                         bondingTimeoutJob = scope.launch {
                                             delay(20_000)
                                             if (isAwaitingBond && classicDevice == found) {
-                                                host.log(L10n.t("配对请求未确认：若手机无配对弹窗，请到系统 设置->蓝牙 手动点击相机完成配对", "Pairing request not confirmed: if no dialog appeared, pair manually in System Settings -> Bluetooth"))
+                                                host.log(context.getString(R.string.log_pairing_request_not_confirmed))
                                             }
                                         }
                                         startClassicDiscovery()
@@ -1219,7 +1224,7 @@ class NikonPairingSession(
         val started = adapter.startDiscovery()
         Log.d(TAG, "startDiscovery() returned $started")
         if (started) {
-            host.log(L10n.t("正在通过蓝牙搜索相机...", "Searching for the camera over Bluetooth..."))
+            host.log(context.getString(R.string.log_searching_camera_bt))
         } else {
             Log.w(TAG, "startDiscovery() returned false, will retry in 2s")
             discoveryRestartJob?.cancel()
@@ -1278,7 +1283,7 @@ class NikonPairingSession(
                 lastAdvertisedDevice = advertised
                 Log.d(TAG, "[BLE SCAN] Camera $address advertises known device ID=0x%08X".format(advertised))
                 if (pairingMode == PairingMode.NEW) {
-                    host.log(L10n.t("发现已配对相机（设备ID=0x%08X），选择后可直接切换连接", "Found a paired camera (device ID=0x%08X); select to switch directly").format(advertised))
+                    host.log(context.getString(R.string.log_found_paired_camera_switch, advertised))
                 }
             }
         }

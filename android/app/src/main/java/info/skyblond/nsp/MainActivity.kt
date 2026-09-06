@@ -55,11 +55,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import info.skyblond.nsp.data.SettingsRepository
 import info.skyblond.nsp.service.ConnectionState
-import info.skyblond.nsp.ui.L10n
 import info.skyblond.nsp.ui.DiscoveredCameraDialog
 import info.skyblond.nsp.ui.MainViewModel
 import info.skyblond.nsp.ui.PermissionHandler
@@ -214,14 +214,14 @@ private fun MainScreen(viewModel: MainViewModel) {
                         EventsSection(uiState = uiState, modifier = Modifier.weight(1f))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             ActionButton(
-                                text = L10n.t("配对新相机", "Pair New Camera"),
+                                text = stringResource(R.string.btn_pair_new_camera),
                                 enabled = pairingButtonsEnabled,
                                 loading = uiState.connectionState is ConnectionState.Scanning,
                                 onClick = { viewModel.onPairClicked() },
                                 modifier = Modifier.weight(1f)
                             )
                             ActionButton(
-                                text = L10n.t("连接已保存相机", "Connect Saved"),
+                                text = stringResource(R.string.btn_connect_saved),
                                 enabled = pairingButtonsEnabled,
                                 loading = uiState.connectionState is ConnectionState.Connecting ||
                                     uiState.connectionState is ConnectionState.Discovering ||
@@ -231,13 +231,13 @@ private fun MainScreen(viewModel: MainViewModel) {
                                 modifier = Modifier.weight(1f)
                             )
                             ActionButton(
-                                text = L10n.t("发送 GPS", "Send GPS"),
+                                text = stringResource(R.string.btn_send_gps),
                                 enabled = uiState.connectionState is ConnectionState.Ready,
                                 onClick = { viewModel.onSendClicked() },
                                 modifier = Modifier.weight(1f)
                             )
                             ActionButton(
-                                text = L10n.t("断开连接", "Disconnect"),
+                                text = stringResource(R.string.action_disconnect),
                                 enabled = connected || connectionInProgress,
                                 onClick = { viewModel.onDisconnectClicked() },
                                 modifier = Modifier.weight(1f)
@@ -265,14 +265,14 @@ private fun MainScreen(viewModel: MainViewModel) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         ActionButton(
-                            text = L10n.t("配对新相机", "Pair New Camera"),
+                            text = stringResource(R.string.btn_pair_new_camera),
                             enabled = pairingButtonsEnabled,
                             loading = uiState.connectionState is ConnectionState.Scanning,
                             onClick = { viewModel.onPairClicked() },
                             modifier = Modifier.fillMaxWidth()
                         )
                         ActionButton(
-                            text = L10n.t("连接已保存相机", "Connect Saved"),
+                            text = stringResource(R.string.btn_connect_saved),
                             enabled = pairingButtonsEnabled,
                             loading = uiState.connectionState is ConnectionState.Connecting ||
                                 uiState.connectionState is ConnectionState.Discovering ||
@@ -282,13 +282,13 @@ private fun MainScreen(viewModel: MainViewModel) {
                             modifier = Modifier.fillMaxWidth()
                         )
                         ActionButton(
-                            text = L10n.t("立即发送 GPS", "Send GPS Now"),
+                            text = stringResource(R.string.btn_send_gps_now),
                             enabled = uiState.connectionState is ConnectionState.Ready,
                             onClick = { viewModel.onSendClicked() },
                             modifier = Modifier.fillMaxWidth()
                         )
                         ActionButton(
-                            text = L10n.t("断开连接", "Disconnect"),
+                            text = stringResource(R.string.action_disconnect),
                             enabled = connected || connectionInProgress,
                             onClick = { viewModel.onDisconnectClicked() },
                             modifier = Modifier.fillMaxWidth()
@@ -323,22 +323,23 @@ private fun MainScreen(viewModel: MainViewModel) {
 
 @Composable
 private fun StatusSection(uiState: MainViewModel.UiState, compact: Boolean = false) {
+    val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = L10n.t("状态：", "Status: ") + uiState.connectionState.label,
+            text = stringResource(R.string.status_label, uiState.connectionState.label(context)),
             style = MaterialTheme.typography.bodyLarge
         )
         Text(
-            text = L10n.t("服务运行中：", "Service running: ") + uiState.serviceBound,
+            text = stringResource(R.string.status_service_running, uiState.serviceBound),
             style = MaterialTheme.typography.bodySmall
         )
         val gps = uiState.gpsState
         Text(
             text = buildString {
-                append(L10n.t("GPS：", "GPS: "))
+                append(stringResource(R.string.gps_label))
                 when {
-                    !gps.enabled -> append(L10n.t("未开启（连接相机后自动定位）", "Off (auto-starts after connecting)"))
-                    !gps.hasFix -> append(L10n.t("正在定位...", "Locating..."))
+                    !gps.enabled -> append(stringResource(R.string.gps_off_auto_start))
+                    !gps.hasFix -> append(stringResource(R.string.gps_locating))
                     else -> append(
                         String.format(
                             Locale.US,
@@ -350,7 +351,7 @@ private fun StatusSection(uiState: MainViewModel.UiState, compact: Boolean = fal
                     )
                 }
                 gps.lastSentTime?.let {
-                    append(L10n.t("  |  已发送 ", "  |  sent ") + formatTime(it))
+                    append(stringResource(R.string.gps_sent_at, formatTime(it)))
                 }
             },
             style = MaterialTheme.typography.bodySmall,
@@ -364,12 +365,12 @@ private fun StatusSection(uiState: MainViewModel.UiState, compact: Boolean = fal
 private fun EventsSection(uiState: MainViewModel.UiState, modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = L10n.t("最近事件：", "Recent events:"),
+            text = stringResource(R.string.events_title),
             style = MaterialTheme.typography.titleMedium
         )
         if (uiState.lastEvents.isEmpty()) {
             Text(
-                text = L10n.t("暂无事件", "No events"),
+                text = stringResource(R.string.events_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.heightIn(min = 48.dp)
             )
@@ -398,7 +399,7 @@ private fun TitleRow(onOpenAdvanced: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = L10n.t("尼康智能 GPS", "Nikon Smart GPS"),
+            text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f)
         )
@@ -406,12 +407,12 @@ private fun TitleRow(onOpenAdvanced: () -> Unit) {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(
                     imageVector = Icons.Filled.MoreVert,
-                    contentDescription = L10n.t("更多", "More")
+                    contentDescription = stringResource(R.string.cd_more)
                 )
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
-                    text = { Text(L10n.t("高级设置（一般无需更改）", "Advanced settings (no changes needed)")) },
+                    text = { Text(stringResource(R.string.menu_advanced_settings_hint)) },
                     onClick = {
                         menuOpen = false
                         onOpenAdvanced()
@@ -449,20 +450,17 @@ private fun AdvancedSettingsPage(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = L10n.t("返回", "Back")
+                        contentDescription = stringResource(R.string.cd_back)
                     )
                 }
                 Text(
-                    text = L10n.t("高级设置", "Advanced Settings"),
+                    text = stringResource(R.string.advanced_settings_title),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f)
                 )
             }
             Text(
-                text = L10n.t(
-                    "以下设置一般无需更改；仅在切换 SnapBridge 设备或重新提取标识后需要调整。",
-                    "These are usually fine as-is; only adjust after switching SnapBridge devices or re-extracting the ID."
-                ),
+                text = stringResource(R.string.advanced_settings_description),
                 style = MaterialTheme.typography.bodySmall
             )
             SpoofNameField(
@@ -488,14 +486,11 @@ private fun SpoofNameField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(L10n.t("相机端设备名（伪装名，可留空）", "Camera-side device name (optional)")) },
-            placeholder = { Text(L10n.t("默认：nsg-poc", "Default: nsg-poc")) },
+            label = { Text(stringResource(R.string.spoof_name_label)) },
+            placeholder = { Text(stringResource(R.string.spoof_name_placeholder)) },
             supportingText = {
                 Text(
-                    L10n.t(
-                        "仅限英文和数字，最长 32 字符；填与 SnapBridge 相同的名字，相机将视为同一设备",
-                        "ASCII only, max 32 chars; matching SnapBridge's name makes the camera treat this app as the same device"
-                    )
+                    stringResource(R.string.spoof_name_support)
                 )
             },
         singleLine = true,
@@ -512,14 +507,11 @@ private fun FixedDeviceIdField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(L10n.t("固定设备标识（可选，8或16位十六进制）", "Fixed device ID (optional, 8 or 16 hex)")) },
-            placeholder = { Text(L10n.t("如 445D4B24 或 445D4B24981064F7；16位=设备ID+nonce", "e.g. 445D4B24 or 445D4B24981064F7; 16 hex = device+nonce")) },
+            label = { Text(stringResource(R.string.fixed_device_id_label)) },
+            placeholder = { Text(stringResource(R.string.fixed_device_id_placeholder)) },
             supportingText = {
                 Text(
-                    L10n.t(
-                        "填入 SnapBridge 的完整设备标识（16位=设备ID+nonce）可与 SnapBridge 无缝切换；8位仅固定设备ID",
-                        "Enter SnapBridge's full ID (16 hex = device+nonce) to switch seamlessly; 8 hex fixes only the device ID"
-                    )
+                    stringResource(R.string.fixed_device_id_support)
                 )
             },
         singleLine = true,
@@ -553,9 +545,9 @@ private fun BatteryButton(batteryExempt: Boolean, onClick: () -> Unit) {
     Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Text(
             if (batteryExempt) {
-                L10n.t("电池优化：已豁免（后台运行正常）", "Battery optimization: exempt (runs in background)")
+                stringResource(R.string.battery_exempt)
             } else {
-                L10n.t("电池优化：未豁免 - 点击设置，允许后台运行", "Battery optimization: not exempt - tap to allow background running")
+                stringResource(R.string.battery_not_exempt)
             }
         )
     }

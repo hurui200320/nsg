@@ -19,8 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import info.skyblond.nsp.R
 import info.skyblond.nsp.data.DiscoveredCamera
 import info.skyblond.nsp.data.PairedCamera
 
@@ -32,10 +35,10 @@ fun DiscoveredCameraDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(L10n.t("选择要配对的相机", "Select camera to pair")) },
+        title = { Text(stringResource(R.string.dialog_select_camera_to_pair)) },
         text = {
             if (cameras.isEmpty()) {
-                Text(L10n.t("未发现相机，请确认相机已进入配对模式", "No camera found. Make sure the camera is in pairing mode."))
+                Text(stringResource(R.string.dialog_no_camera_found))
             } else {
                 LazyColumn {
                     items(cameras, key = { it.address }) { camera ->
@@ -51,7 +54,7 @@ fun DiscoveredCameraDialog(
                                     append("\n")
                                     append(camera.address)
                                     if (camera.manufacturerData != null) {
-                                        append("\n[" + L10n.t("已有配对记录，选择后可直接切换连接", "Already paired; select to switch") + "]")
+                                        append("\n[" + stringResource(R.string.dialog_already_paired_hint) + "]")
                                     }
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
@@ -64,7 +67,7 @@ fun DiscoveredCameraDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(L10n.t("取消", "Cancel"))
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -86,18 +89,19 @@ fun SavedCameraDialog(
             pendingDelete = null
             onDismiss()
         },
-        title = { Text(L10n.t("选择已保存的相机", "Select a saved camera")) },
+        title = { Text(stringResource(R.string.dialog_select_saved_camera)) },
         text = {
             if (cameras.isEmpty()) {
-                Text(L10n.t("暂无已保存的相机，请先配对", "No saved cameras yet. Pair one first."))
+                Text(stringResource(R.string.dialog_no_saved_cameras))
             } else {
                 LazyColumn {
                     if (cameras.size > 1) {
                         item {
                             Text(
-                                text = L10n.t(
-                                    "已保存 ${cameras.size} 台相机。可点「设为默认」选择启动时自动连接的相机，点「删除」移除。",
-                                    "${cameras.size} camera(s) saved. Use \"Set Default\" to pick the auto-connect camera at startup; \"Delete\" removes it."
+                                text = pluralStringResource(
+                                    R.plurals.dialog_saved_count_hint,
+                                    cameras.size,
+                                    cameras.size
                                 ),
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -124,7 +128,7 @@ fun SavedCameraDialog(
                                 )
                                 if (isDefault) {
                                         Text(
-                                            text = L10n.t("✓ 启动时默认连接", "✓ Default at startup"),
+                                            text = stringResource(R.string.default_at_startup),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -134,18 +138,18 @@ fun SavedCameraDialog(
                                     horizontalArrangement = Arrangement.Center
                                 ) {
                                     TextButton(onClick = { onSelect(camera) }) {
-                                        Text(L10n.t("连接", "Connect"))
+                                        Text(stringResource(R.string.action_connect))
                                     }
                                     TextButton(onClick = { onAutoExtract(camera) }) {
-                                        Text(L10n.t("自动提取标识", "Auto Extract ID"))
+                                        Text(stringResource(R.string.action_auto_extract_id))
                                     }
                                     if (cameras.size > 1) {
                                         TextButton(onClick = { onSetDefault(camera) }) {
-                                            Text(if (isDefault) L10n.t("取消默认", "Unset Default") else L10n.t("设为默认", "Set Default"))
+                                            Text(if (isDefault) stringResource(R.string.action_unset_default) else stringResource(R.string.action_set_default))
                                         }
                                     }
                                     TextButton(onClick = { pendingDelete = camera }) {
-                                        Text(L10n.t("删除", "Delete"))
+                                        Text(stringResource(R.string.action_delete))
                                     }
                                 }
                             }
@@ -159,20 +163,17 @@ fun SavedCameraDialog(
                 pendingDelete = null
                 onDismiss()
             }) {
-                Text(L10n.t("取消", "Cancel"))
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
     pendingDelete?.let { camera ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text(L10n.t("删除相机", "Delete camera")) },
+            title = { Text(stringResource(R.string.dialog_delete_camera_title)) },
             text = {
                 Text(
-                    L10n.t(
-                        "确定要删除 ${camera.name} 吗？删除后需要重新配对才能连接。",
-                        "Delete ${camera.name}? You will need to pair again to reconnect."
-                    )
+                    stringResource(R.string.dialog_delete_camera_message, camera.name)
                 )
             },
             confirmButton = {
@@ -180,12 +181,12 @@ fun SavedCameraDialog(
                     pendingDelete = null
                     onDelete(camera)
                 }) {
-                    Text(L10n.t("删除", "Delete"))
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
-                    Text(L10n.t("取消", "Cancel"))
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
