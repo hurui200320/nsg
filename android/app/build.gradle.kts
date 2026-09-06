@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -24,30 +22,50 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing is opt-in via NSG_SIGN_RELEASE=true, set only by
+    // .github/workflows/release.yml (job env, inherited by the Gradle step).
+    // GITHUB_ACTIONS is deliberately NOT used as the gate: it is true for
+    // every GitHub Actions run, so gating on it would force signing vars on
+    // unrelated CI jobs (tests, lint, debug builds) and break fork PRs that
+    // have no secrets. Local builds leave NSG_SIGN_RELEASE unset, so
+    // signingConfig stays null below and any clean checkout builds an
+    // unsigned APK without extra setup.
+    // providers.environmentVariable keeps this configuration-cache safe.
+    val signRelease = providers.environmentVariable("NSG_SIGN_RELEASE").orNull == "true"
     signingConfigs {
         create("release") {
-            val props = Properties()
-            val propsFile = rootProject.file("keystore.properties")
-            if (propsFile.exists()) {
-                propsFile.inputStream().use { props.load(it) }
-            }
-            val storePath = props.getProperty("storeFile")
-            if (storePath != null) {
-                storeFile = rootProject.file(storePath)
-                storePassword = props.getProperty("storePassword")
-                keyAlias = props.getProperty("keyAlias")
-                keyPassword = props.getProperty("keyPassword")
+            if (signRelease) {
+                val keystorePath = providers.environmentVariable("KEYSTORE_PATH").orNull
+                val storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+                val keyAlias = providers.environmentVariable("KEY_ALIAS").orNull
+                val keyPassword = providers.environmentVariable("KEY_PASSWORD").orNull
+                if (keystorePath.isNullOrBlank() || storePassword.isNullOrBlank() || keyAlias.isNullOrBlank() || keyPassword.isNullOrBlank()) {
+                    throw GradleException(
+                        "Release signing env vars missing. " +
+                            "Expected KEYSTORE_PATH, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD " +
+                            "when NSG_SIGN_RELEASE=true."
+                    )
+                }
+                val ksFile = file(keystorePath)
+                if (!ksFile.exists()) {
+                    throw GradleException("Release keystore file not found at $keystorePath.")
+                }
+                storeFile = ksFile
+                this.storePassword = storePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
             }
         }
     }
     buildTypes {
         release {
-            // Sign with the local release keystore (keystore.properties is gitignored);
-            // fall back to the debug key so clean checkouts still build.
-            signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
+            // Signed only when NSG_SIGN_RELEASE=true via signingConfigs.release;
+            // always unsigned otherwise so clones build with zero setup.
+            // Output is app-release.apk when signed, app-release-unsigned.apk otherwise.
+            signingConfig = if (signRelease) {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                null
             }
             optimization {
                 enable = false

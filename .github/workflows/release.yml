@@ -11,34 +11,93 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      BUILD_TOOLS_VERSION: "36.0.0"
+      KEYSTORE_PATH: ${{ runner.temp }}/release.keystore
+      NSG_SIGN_RELEASE: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - name: Restore release keystore from secrets
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
+      - name: Install Android 36 platform and build-tools
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platforms;android-36" "build-tools;$BUILD_TOOLS_VERSION"
+      - name: Check signing secrets and restore keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::KEYSTORE_BASE64 secret is not configured. See android/README.md 'Release builds (CI)'."
+          set -euo pipefail
+          umask 077
+          missing=0
+          for var in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::$var secret is not configured. See android/README.md 'Release builds (CI)'."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > android/release.keystore
-          printf 'storeFile=release.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
-            "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/keystore.properties
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
-      - name: Build release APK
+      - name: Build signed release APK
         working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ env.KEYSTORE_PATH }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
+      - name: Verify and rename signed APK
+        run: |
+          set -euo pipefail
+          SIGNED_APK="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$SIGNED_APK" ]; then
+            echo "::error::Expected signed APK not found at $SIGNED_APK (Gradle signs only when NSG_SIGN_RELEASE=true; local builds are unsigned)."
+            exit 1
+          fi
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "::error::Neither ANDROID_HOME nor ANDROID_SDK_ROOT is set; cannot locate apksigner."
+            exit 1
+          fi
+          APKSIGNER="$SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+          if [ ! -x "$APKSIGNER" ]; then
+            echo "::error::apksigner not found or not executable at $APKSIGNER."
+            exit 1
+          fi
+          ZIPALIGN="$SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION/zipalign"
+          if [ ! -x "$ZIPALIGN" ]; then
+            echo "::error::zipalign not found or not executable at $ZIPALIGN."
+            exit 1
+          fi
+          "$APKSIGNER" verify --print-certs "$SIGNED_APK"
+          "$ZIPALIGN" -c 4 "$SIGNED_APK"
+          mv "$SIGNED_APK" nsg.apk
+          rm -f "$KEYSTORE_PATH"
+      - name: Clean up keystore (always)
+        if: always()
+        run: rm -f "${KEYSTORE_PATH:-${RUNNER_TEMP:-}/release.keystore}"
+      - name: Upload APK artifact (manual runs)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: nsg-apk
+          path: nsg.apk
       - name: Publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/release/app-release.apk
+          files: nsg.apk
           generate_release_notes: true

@@ -64,7 +64,7 @@ App 会自动生成与 SnapBridge 相同格式的控制器名称（`Android_机�
 
 ### 1. 安装
 
-从 [Releases](https://github.com/HowenXu/nsg/releases) 下载 `Nikon_Smart_GPS.apk` 安装。首次打开请允许：
+从 [Releases](https://github.com/HowenXu/nsg/releases) 下载 `nsg.apk` 安装。首次打开请允许：
 
 - 位置权限（获取 GPS）；
 - 蓝牙权限（连接相机）；
@@ -106,3 +106,59 @@ App 会自动生成与 SnapBridge 相同格式的控制器名称（`Android_机�
 - **不要清除 SnapBridge 的数据或重装它**：否则它会重新生成设备标识，需要重新「自动提取」一次；
 - 尼康相机 LCD 上的坐标显示存在固件级小数显示 bug（如 `51.002'` 显示成 `51.2'`），但写入照片 EXIF 的坐标是正确的（详见原项目说明）。
 - 软件没有做图标，我很懒得搞，等一位愿意贡献的有缘人可以直接给我发 [issue](https://github.com/HowenXu/nsg/issues)😋😋
+
+## Release 构建（CI）
+
+Release APK 由 GitHub Actions 自动构建并发布。
+
+**流程**
+
+- 推送形如 `v*` 的 tag 会触发 `.github/workflows/release.yml`。
+- 工作流从仓库 secrets 还原 release keystore（密钥本身不进 git），再运行 `./gradlew assembleRelease`：仅当 `NSG_SIGN_RELEASE=true` 时（由 release 工作流的 job env 设置，其他 CI 任务及无 secrets 的 fork PR 仍构建为未签名包）通过 `KEYSTORE_PATH` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD` 环境变量经 `signingConfigs.release` 完成签名。
+- 签名后的 `app-release.apk` 经 `apksigner verify` 与 `zipalign -c` 校验后重命名为 `nsg.apk`，附加到该 tag 的 GitHub Release。
+
+本地 `assembleRelease` 构建恒为未签名（`app-release-unsigned.apk`），这是有意为之：无需任何 keystore 配置，任何干净 checkout 都能直接构建。未签名 APK 不能直接安装（`adb install` 会拒绝）；要在本地冒烟测试 release 构建，请自行签名：
+
+**方案 A — 用自己的 keystore 给未签名 APK 签名**
+
+```bash
+cd android
+./gradlew assembleRelease
+# -> app/build/outputs/apk/release/app-release-unsigned.apk
+zipalign -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk app-aligned.apk
+apksigner sign --ks /path/to/your.keystore --ks-pass pass:STOREPASS --ks-key-alias ALIAS --key-pass pass:KEYPASS --out nsg-local.apk app-aligned.apk
+apksigner verify --print-certs nsg-local.apk
+adb install nsg-local.apk
+```
+
+（`zipalign` / `apksigner` 位于 Android SDK build-tools 中，例如 `$ANDROID_HOME/build-tools/36.0.0/`。）
+
+**方案 B — 用临时测试 key 复现 CI 签名路径**
+
+```bash
+keytool -genkeypair -keystore /tmp/test.keystore -alias test -keyalg RSA -keysize 2048 -validity 3650 \
+  -storepass test123 -keypass test123 -dname "CN=test"
+cd android
+NSG_SIGN_RELEASE=true KEYSTORE_PATH=/tmp/test.keystore KEYSTORE_PASSWORD=test123 KEY_ALIAS=test KEY_PASSWORD=test123 \
+  ./gradlew assembleRelease
+# -> app/build/outputs/apk/release/app-release.apk（已签名）
+```
+
+手动触发的工作流（`workflow_dispatch`）同样会构建、校验并签名，但产物以上传 workflow artifact 的形式提供，而不会发布 GitHub Release。
+
+**所需的仓库 secrets**
+
+在 **Settings -> Secrets and variables -> Actions** 中配置，缺一不可（缺失时工作流会在构建前直接失败，而不会发布坏包）：
+
+| Secret | 含义 |
+| --- | --- |
+| `KEYSTORE_BASE64` | release `.keystore`/`.jks` 文件的 Base64 |
+| `KEYSTORE_PASSWORD` | Keystore 密码 |
+| `KEY_ALIAS` | Key 别名 |
+| `KEY_PASSWORD` | Key 密码 |
+
+**发版步骤**
+
+1. 在 `app/build.gradle.kts` 中递增 `versionCode`/`versionName`。
+2. 打 tag 并推送：`git tag v1.0.1 && git push origin v1.0.1`。
+3. 从生成的 GitHub Release 下载签名好的 `nsg.apk`。
