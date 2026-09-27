@@ -1,0 +1,70 @@
+name: ESP32 CI
+
+# Native unit tests (pio test -e native) and firmware builds for the ESP32
+# side, so regressions in lib/ or src/ are caught on PRs instead of only on
+# tag-triggered release builds (see release.yml, which handles the signed
+# Android APK release).
+
+on:
+  pull_request:
+    paths:
+      - 'esp32/**'
+      - '.github/workflows/esp32-ci.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'esp32/**'
+      - '.github/workflows/esp32-ci.yml'
+  workflow_dispatch:
+
+# cancel superseded runs of the same branch/PR: pushes to master and PR
+# updates would otherwise queue several ~10-minute firmware builds
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-tests:
+    name: Native unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esp32
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio==6.1.19
+      - name: Run unit tests
+        run: pio test -e native
+
+  firmware-build:
+    name: Firmware build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: esp32
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: ${{ runner.os }}-pio-esp32-${{ hashFiles('esp32/platformio.ini') }}
+          restore-keys: ${{ runner.os }}-pio-esp32-
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio==6.1.19
+      # release first (the shipped artifact), then debug (compiles the DEBUG
+      # log level too). NSG_LOG_* call sites are printf-format-checked in
+      # both builds (format attributes in src/Logging.h plus -Werror=format
+      # in platformio.ini), so a mismatched format string fails the build
+      # instead of garbling logs at runtime.
+      - name: Build release firmware
+        run: pio run -e esp32-wroom-32e-release
+      - name: Build debug firmware
+        run: pio run -e esp32-wroom-32e-debug

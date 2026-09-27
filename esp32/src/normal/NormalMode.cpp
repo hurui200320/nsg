@@ -31,7 +31,7 @@ void NormalMode::setup() {
         }
         // still fail, try the fallback baud rate
         if (!onFallbackBaudRate) {
-            NSG_LOG_INFO("NormalMode::setup", "Change GNSS baud rate from %d to %d...", gnss.baudRate(), UBLOX_GNSS_FALLBACK_BAUD_RATE);
+            NSG_LOG_INFO("NormalMode::setup", "Change GNSS baud rate from %lu to %d...", (unsigned long)gnss.baudRate(), UBLOX_GNSS_FALLBACK_BAUD_RATE);
             gnss.updateBaudRate(UBLOX_GNSS_FALLBACK_BAUD_RATE);
             onFallbackBaudRate = true;
         } else {
@@ -138,12 +138,12 @@ void NormalMode::printStatus(GnssSnapshot const& gnssStatus, BleStatusSnapshot c
     double lonM = (lonAbs - lonD) * 60.0;
     NSG_LOG_INFO("GPS Status", "LON: %s %3d deg %06.3f'", gnssStatus.lon >= 0 ? "E" : "W", lonD, lonM);
     // altitude, some extra space to cover digits change
-    NSG_LOG_INFO("GPS Status", "ALT: %s %d M", gnssStatus.altitudeMeters >= 0 ? "+" : "-",  //
-                 gnssStatus.altitudeMeters >= 0 ? gnssStatus.altitudeMeters : -gnssStatus.altitudeMeters);
+    NSG_LOG_INFO("GPS Status", "ALT: %s %ld M", gnssStatus.altitudeMeters >= 0 ? "+" : "-",  //
+                 (long)(gnssStatus.altitudeMeters >= 0 ? gnssStatus.altitudeMeters : -gnssStatus.altitudeMeters));
     // satellites count
     NSG_LOG_INFO("GPS Status", "SAT: %d", gnssStatus.satellites);
     // BLE connection
-    NSG_LOG_INFO("GPS Status", "BLE: %u / %d", bleStatus.activeConnections, CONFIG_BTDM_CTRL_BLE_MAX_CONN);
+    NSG_LOG_INFO("GPS Status", "BLE: %lu / %d", (unsigned long)bleStatus.activeConnections, CONFIG_BTDM_CTRL_BLE_MAX_CONN);
     // Paired devices
-    NSG_LOG_INFO("GPS Status", "CAM: %u paired", bleStatus.pairedCount);
+    NSG_LOG_INFO("GPS Status", "CAM: %lu paired", (unsigned long)bleStatus.pairedCount);
 }

@@ -153,7 +153,7 @@ void PairingMode::showCodeAndWaitConfirm() {
         delay(100);
         return;
     }
-    NSG_LOG_INFO("PairingMode::showCodeAndWaitConfirm", "Classic BT pairing code: %06u, auto confirm...", classicBT->getPairCode());
+    NSG_LOG_INFO("PairingMode::showCodeAndWaitConfirm", "Classic BT pairing code: %06lu, auto confirm...", (unsigned long)classicBT->getPairCode());
     classicBT->confirmPairCode(true);
     timeAfterPairSuccess = 0;
     state = State::CODE_CONFIRM;

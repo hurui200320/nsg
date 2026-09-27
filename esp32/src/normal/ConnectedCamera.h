@@ -24,6 +24,19 @@ class ConnectedCamera {
     uint32_t lastBroadcastMillis = 0;
 
     bool lastGeoValid = false;
+
+    // --- Worker-task-only bookkeeping (see lib/utils/BleRetryPolicy.h) ---
+    // millis() of the last FAILED reconnect/handshake attempt for this
+    // camera — including an attempt skipped entirely because all BLE slots
+    // were busy — 0 = none on record. Gates how often a failing camera is
+    // retried; armed when the attempt finishes (not when it starts), so a
+    // slow ~45s attempt still yields a full retry interval of rest.
+    uint32_t lastConnectAttemptMillis = 0;
+    // millis() of the last successful handshake or TIME/GEO write,
+    // 0 = none yet. Feeds the stale-client (liveness) watchdog; re-armed
+    // when the RTC becomes valid, since silence before the GNSS time
+    // sync is expected, not a zombie sign.
+    uint32_t lastCommOkMillis = 0;
 };
 
-#endif
+#endif  // CONNECTED_CAMERA_H

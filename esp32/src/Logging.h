@@ -20,15 +20,18 @@ namespace Logging {
 #define NSG_LOG_LEVEL 1
 #endif
 
-void debug(const char* logger, const char* fmt, ...);
-void info(const char* logger, const char* fmt, ...);
-void warn(const char* logger, const char* fmt, ...);
-void error(const char* logger, const char* fmt, ...);
+// The printf format attribute makes the compiler type-check every NSG_LOG_*
+// call site against its format string (arg 1 is the logger, arg 2 the
+// format), promoted to a build error via -Werror=format in platformio.ini.
+void debug(const char* logger, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+void info(const char* logger, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+void warn(const char* logger, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+void error(const char* logger, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 /**
  * Special helper, loop forever and print error message every second.
  */
-[[noreturn]] void fatal(const char* logger, const char* fmt, ...);
+[[noreturn]] void fatal(const char* logger, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 
 }  // namespace Logging
 

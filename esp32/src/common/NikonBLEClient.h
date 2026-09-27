@@ -12,6 +12,15 @@
 #include "RandomGenerator.h"
 #include "TimeMessage.h"
 
+// Timeout for a single BLE (re)connect attempt (the BLEClient::connect call
+// in doHandshake). A camera going idle keeps broadcasting but takes longer
+// (~30s) to accept the connection, so this must cover that comfortably.
+// Shared with the NIKON_BLE_CLIENT_DEADLINE_MS static_assert in BleWorker.h
+// so the two cannot drift apart.
+#ifndef NIKON_BLE_CONNECT_TIMEOUT_MS
+#define NIKON_BLE_CONNECT_TIMEOUT_MS 45000
+#endif
+
 class NikonBLEClient {
    public:
     explicit NikonBLEClient(RandomGenerator& randomGenerator);

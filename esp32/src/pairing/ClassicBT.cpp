@@ -43,8 +43,10 @@ ClassicBT::ClassicBT(std::string name) : serialBT(), targetName(name), pairCode(
     serialBT.enableSSP(true, true);
     serialBT.onConfirmRequest([this](uint32_t numVal) {
         pairCode = numVal;
-        char buffer[10];
-        snprintf(buffer, sizeof(buffer), "%06u", numVal);
+        // uint32_t can be up to 10 digits + NUL; PINs are 6 digits, but
+        // don't rely on it for the buffer size
+        char buffer[11];
+        snprintf(buffer, sizeof(buffer), "%06lu", (unsigned long)numVal);
         NSG_LOG_INFO("ClassicBT", "The pairing PIN is: %s", buffer);
         pairCodeReady = true;
     });
