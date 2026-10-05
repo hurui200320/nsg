@@ -55,9 +55,10 @@ Loop (core 1):
 
 BLE worker task (core 0), one pass:
 + Block up to 1s for a scan result (the tick that also keeps the 30s broadcast timer running)
-+ Watchdog: drop connected clients that have had no successful communication within the deadline
-+ Send due TIME/GEO payloads to connected cameras (every 30s per camera); a failed write drops the whole client so its BLE slot is released
-+ Process scan results: tear down disconnected clients and reconnect (retry-gated, at most one handshake per pass)
++ Read RTC validity; on the GNSS time-sync edge, re-arm connected cameras' liveness timestamps
++ Send due TIME/GEO payloads to connected cameras (every 30s per camera); a failed write drops the whole client, releasing its BLE slot, and arms the retry gate
++ Watchdog: drop connected clients that have had no successful communication within the deadline — checked after due payloads, so a camera whose payload is due proves its liveness before the deadline is applied
++ Process scan results: tear down disconnected clients and reconnect (retry-gated, at most one handshake per pass; results still queued after that handshake are left for the next pass instead of being discarded)
 + Refresh the BLE status snapshot, then resume scanning
 
 Structure:
@@ -77,10 +78,10 @@ The device has two modes:
 
 Cameras that disappear (switched off, standby, out of range) are handled without leaking BLE slots or hammering the radio (see issue #25):
 
-- **Dead clients are destroyed, not just disconnected.** A zombie link can leave a client reporting `isConnected() == true` forever — the stack never delivers the disconnect event — so the client would hold its BLE slot until reboot and every later connect attempt is refused locally. On a failed TIME/GEO write the worker therefore destroys the whole client (`esp_ble_gattc_app_unregister` via the destructor), which releases the slot; the next advertisement produces a clean reconnect.
-- **Per-camera retry gate.** A camera that keeps failing to (re)connect — or is skipped because all BLE slots are busy — is retried at most once per retry interval, counted from the end of the failed (or skipped) attempt, instead of on every advertisement (which was several hundred radio-heavy attempts per minute, degrading GNSS reception).
-- **Payloads before connects.** Each pass sends due payloads before attempting new handshakes, and performs at most one handshake per pass, so a single ~45s connect attempt cannot starve already-connected cameras.
-- **Liveness watchdog.** A connected client with no successful handshake or payload write within the deadline is treated as a zombie and destroyed. Before the GNSS time sync lands, connected cameras legitimately receive no payloads, so the deadline is tripled there and re-armed on the sync edge — a slow GNSS cold start does not drop healthy cameras, and a zombie still loses its slot eventually even if the GNSS never syncs (e.g. indoors).
+- **Dead clients are destroyed, not just disconnected.** A zombie link can leave a client reporting `isConnected() == true` forever — the stack never delivers the disconnect event — so the client would hold its BLE slot until reboot and every later connect attempt is refused locally. On a failed TIME/GEO write the worker therefore destroys the whole client (`esp_ble_gattc_app_unregister` via the destructor), which releases the slot, and arms the retry gate so the reconnect waits out the retry interval.
+- **Per-camera retry gate.** A camera that keeps failing to (re)connect — is skipped because all BLE slots are busy, or has a payload write fail and its client torn down — is retried at most once per retry interval, counted from the end of the failed (or skipped) attempt, instead of on every advertisement (which was several hundred radio-heavy attempts per minute, degrading GNSS reception). A successful handshake clears the gate.
+- **Payloads before connects.** Each pass sends due payloads before attempting new handshakes, and performs at most one handshake per pass, so a single ~45s connect attempt cannot starve already-connected cameras. Scan results still queued after that one handshake are left for the next pass instead of being discarded, so an intermittently advertising camera is not missed.
+- **Liveness watchdog, after due payloads.** A connected client with no successful handshake or payload write within the deadline is treated as a zombie and destroyed. The check runs after the pass's due payloads are served, so a camera whose payload is due refreshes its liveness first — a healthy camera delayed past the deadline by other cameras' blocked writes is not dropped. Before the GNSS time sync lands, connected cameras legitimately receive no payloads, so the deadline is tripled there and re-armed on the sync edge — a slow GNSS cold start does not drop healthy cameras, and a zombie still loses its slot eventually even if the GNSS never syncs (e.g. indoors).
 
 Related build flags (defaults in the source headers — `src/normal/BleWorker.h` and `src/common/NikonBLEClient.h` — overridden in `platformio.ini`):
 

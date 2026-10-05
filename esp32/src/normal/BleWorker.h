@@ -24,7 +24,11 @@
 // Min wait between reconnect attempts for the same camera. Without this, a
 // camera that keeps failing to connect (switched off, out of range, or the
 // stack refusing locally because no resource is free) is retried on every
-// advertisement — several hundred times per minute (see issue #25).
+// advertisement — several hundred times per minute (see issue #25). The
+// gate is armed whenever an attempt finishes failed or is skipped for full
+// BLE slots, or when a failed payload write tears the client down, and is
+// cleared again on a successful handshake (see
+// BleRetryPolicy::CameraTiming).
 #ifndef NIKON_BLE_CONNECT_RETRY_INTERVAL_MS
 #define NIKON_BLE_CONNECT_RETRY_INTERVAL_MS 10000
 #endif
@@ -36,20 +40,22 @@
 // payloads are legitimately never sent before the GNSS time sync, so only
 // handshakes refresh a healthy camera's liveness timestamp then.
 //
-// The deadline must survive a worst-case pass sequence for a healthy camera
-// whose due-check was just missed: its own update interval, one further
-// interval during which another camera's blocked TIME write can delay the
-// worker (~30s write timeout — the follow-up GEO write never happens, the
-// client is dropped on the first failed write, so a slow pair cannot
-// chain), and one handshake (at most one runs per pass, its connect timeout
-// alone is NIKON_BLE_CONNECT_TIMEOUT_MS). The assert below encodes that;
-// real-world writes finish in well under a second, leaving generous headroom.
+// Due payloads are served before the watchdog each pass (taskLoop step 3
+// runs before step 4), so a healthy connected camera refreshes its liveness
+// every broadcast cycle and a camera whose payload was due is written to
+// before the check can drop it — the deadline is not on its critical path.
+// The assert below keeps it above the worst-case residual in-pass delay
+// anyway: its own update interval, one further interval during which
+// another camera's blocked TIME write can delay the worker (~30s write
+// timeout — the failed write drops that client, so a slow pair cannot
+// chain), and one handshake (at most one runs per pass, its connect
+// timeout alone is NIKON_BLE_CONNECT_TIMEOUT_MS).
 #ifndef NIKON_BLE_CLIENT_DEADLINE_MS
 #define NIKON_BLE_CLIENT_DEADLINE_MS 120000
 #endif
 
 static_assert(NIKON_BLE_CLIENT_DEADLINE_MS > 2 * NIKON_BLE_UPDATE_INTERVAL_MS + NIKON_BLE_CONNECT_TIMEOUT_MS,  //
-              "NIKON_BLE_CLIENT_DEADLINE_MS is too tight: a healthy camera delayed by one blocked write plus one handshake would be dropped as a zombie");
+              "NIKON_BLE_CLIENT_DEADLINE_MS is too tight: one broadcast interval plus a blocked write plus one handshake would not fit under it");
 
 #ifndef TZ_OFFSET_HOUR
 #define TZ_OFFSET_HOUR 8
