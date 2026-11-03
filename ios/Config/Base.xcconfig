@@ -1,0 +1,10 @@
+// Shared build configuration. Personal signing values belong in Local.xcconfig.
+// Leave these empty so the repository does not supply a Team or Bundle ID.
+NSG_APP_BUNDLE_ID =
+NSG_SIGNING_TEAM =
+
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = $(NSG_SIGNING_TEAM)
+
+// Paths are relative to this file, so this reads Config/Local.xcconfig.
+#include? "Local.xcconfig"

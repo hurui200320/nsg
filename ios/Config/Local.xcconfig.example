@@ -1,0 +1,12 @@
+//
+// Copy this file to Local.xcconfig.
+// Do not commit Local.xcconfig.
+// The values below are examples. Replace both before building.
+//
+
+// Required: your unique application identifier in reverse-DNS format.
+NSG_APP_BUNDLE_ID = com.yourname.nsg
+
+// Required: the Team ID of your signed-in Apple account (not its display name).
+// ABCDE12345 is a placeholder showing the 10-character format.
+NSG_SIGNING_TEAM = ABCDE12345
