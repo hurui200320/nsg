@@ -32,14 +32,16 @@ struct NikonBluetoothTests {
         let suite = "NSGTests.identity.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        let store = NikonProbeIdentityStore(defaults: defaults)
+        let store = NikonIdentityStore(defaults: defaults)
         let identifier = UUID()
-        let first = try store.resolve(identifier: identifier, name: "Z5", systemConnected: false)
-        let reconnected = try store.resolve(identifier: identifier, name: "Z5", systemConnected: false)
-        let changedUUID = try store.resolve(identifier: UUID(), name: "Z5", systemConnected: false)
-        #expect(first.identity == reconnected.identity)
-        #expect(first.identity == changedUUID.identity)
-        #expect(first.identity.device & 0xFF == 1)
+        let first = store.resolve(identifier: identifier)
+        let reconnected = store.resolve(identifier: identifier)
+        let changedIdentifier = UUID()
+        store.associate(first, identifier: changedIdentifier)
+        let changedUUID = store.resolve(identifier: changedIdentifier)
+        #expect(first == reconnected)
+        #expect(first == changedUUID)
+        #expect(first.device & 0xFF == 1)
     }
 
     @Test("Reject arbitrary migration to a system peripheral when multiple legacy identities exist")
@@ -51,9 +53,48 @@ struct NikonBluetoothTests {
             let message = NikonPairingMessage(stage: 1, timestamp: 0, device: device, nonce: 42)
             defaults.set(message.data, forKey: "NikonProbe.identity.\(UUID().uuidString)")
         }
-        let store = NikonProbeIdentityStore(defaults: defaults)
-        #expect(throws: NikonProbeError.self) {
-            _ = try store.resolve(identifier: UUID(), name: nil, systemConnected: true)
+        let store = NikonIdentityStore(defaults: defaults)
+        #expect(throws: NikonIdentityError.self) {
+            _ = try store.migrateLegacyIdentity(to: UUID())
+        }
+    }
+    @Test("New cameras with the same name receive independent controller identities")
+    func sameNameDoesNotShareIdentity() throws {
+        let suite = "NSGTests.identity.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let legacy = NikonPairingMessage(stage: 1, timestamp: 0, device: 1, nonce: 42)
+        defaults.set(legacy.data, forKey: "NikonProbe.cameraIdentity.Z5")
+        let repository = CameraRepository(defaults: defaults)
+        let first = repository.identity(for: CameraDevice(id: UUID(), name: "Z5"),
+                                        camera: nil, knownCameras: [])
+        let second = repository.identity(for: CameraDevice(id: UUID(), name: "Z5"),
+                                         camera: nil, knownCameras: [])
+        #expect(first != second)
+        #expect(first.stage1Identity != legacy)
+        #expect(second.stage1Identity != legacy)
+    }
+    // Shared captured Z50 II vector from Android's NikonPairingEngineTest.
+    @Test("Captured Stage 2 produces the exact Stage 3 wire bytes")
+    func capturedChallenge() throws {
+        let stage1 = NikonPairingMessage(stage: 1, timestamp: 0x677DA144EC13E1DB,
+                                        device: 0x3C3AE501, nonce: 0x3FDAA451)
+        let stage2 = NikonPairingMessage(stage: 2, timestamp: 0xB9943D5E8026FA29,
+                                        device: 0xA8B3F2E4, nonce: 0x16D56A13)
+        let response = try NikonPairingProtocol.response(to: stage2, stage1: stage1)
+        #expect(response.data == Data([
+            3, 0xDB, 0xE1, 0x13, 0xEC, 0x44, 0xA1, 0x7D, 0x67,
+            0x53, 0xAD, 0xF1, 0x79, 0x35, 0x8A, 0x83, 0x23
+        ]))
+    }
+
+    @Test("Invalid camera challenges are rejected")
+    func rejectedChallenge() {
+        #expect(throws: NikonPairingError.self) {
+            _ = try NikonPairingProtocol.response(
+                to: NikonPairingMessage(stage: 2, timestamp: 0, device: 0, nonce: 0),
+                stage1: NikonPairingMessage(stage: 1, timestamp: 1, device: 1, nonce: 42)
+            )
         }
     }
 }

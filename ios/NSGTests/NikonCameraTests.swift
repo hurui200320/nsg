@@ -1,4 +1,5 @@
 import Foundation
+import CoreBluetooth
 import Testing
 @testable import NSG
 
@@ -17,6 +18,42 @@ struct NikonCameraTests {
         )
     }
 
+    @Test("Visible discovery pauses only during connecting and continues after connection")
+    func visibleDiscovery() throws {
+        let context = try CameraTestContext()
+        defer { context.cleanup() }
+        context.service.setDiscoveryVisible(true)
+        context.transport.emit(.stateChanged(.poweredOn))
+        #expect(context.service.isScanning)
+
+        let device = CameraDevice(id: UUID(), name: "Z5")
+        context.transport.emit(.discovered(device, nil))
+        context.service.connect(device)
+        let session = try #require(context.transport.connections.last?.1)
+        #expect(context.service.connectionState == .connecting)
+        #expect(!context.service.isScanning)
+
+        context.transport.emit(.discovering(session))
+        #expect(context.service.isScanning)
+        #expect(context.service.devices.contains(where: { $0.id == device.id }))
+        context.transport.emit(.connected(session, CameraCapabilities(properties: [
+            .pairing: [.write, .indicate, .read], .success: [.notify],
+            .controllerName: [.write], .location: [.write]
+        ], maximumWriteLength: 512)))
+        context.transport.emit(.subscriptionChanged(session, .pairing, true, nil))
+        context.transport.emit(.subscriptionChanged(session, .success, true, nil))
+        context.finishHandshake(session)
+        #expect(context.service.connectionState == .ready)
+        #expect(context.service.isScanning)
+
+        let other = CameraDevice(id: UUID(), name: "Z6")
+        context.transport.emit(.discovered(other, nil))
+        #expect(context.service.devices.contains(where: { $0.id == other.id }))
+        context.service.setDiscoveryVisible(false)
+        #expect(!context.service.isScanning)
+        #expect(context.service.connectionState == .ready)
+    }
+
     @Test("Persist known cameras and restore them when the service initializes")
     func persistence() throws {
         let suite = "NSGTests.cameras.\(UUID().uuidString)"
@@ -26,7 +63,7 @@ struct NikonCameraTests {
         let store = NikonCameraStore(defaults: defaults)
         try store.save([target])
         #expect(store.load() == [target])
-        let service = BluetoothService(defaults: defaults)
+        let service = NikonCameraService(defaults: defaults, transport: FakeCameraTransport())
         #expect(service.knownCameras == [target])
         service.forgetCamera(target)
         #expect(store.load().isEmpty)
@@ -76,28 +113,37 @@ struct NikonCameraTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let target = camera()
         let identifier = UUID()
-        let store = NikonProbeIdentityStore(defaults: defaults)
-        store.associate(target.identity, identifier: identifier, name: "Z5")
-        let resolved = try store.resolve(identifier: identifier, name: "Z5", systemConnected: false)
-        #expect(resolved.identity == target.identity)
+        let store = NikonIdentityStore(defaults: defaults)
+        store.associate(target.identity, identifier: identifier)
+        let resolved = store.resolve(identifier: identifier)
+        #expect(resolved == target.identity)
     }
 
-    @Test("Stopping scanning cancels target reconnection and preserves camera records")
+    @Test("Stopping target scanning preserves saved camera records")
     func cancelReconnection() throws {
+        let target = camera()
+        let context = try CameraTestContext(cameras: [target])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOn))
+        context.service.connectKnownCamera(target)
+        context.service.stopScan()
+        #expect(context.service.connectionState == .disconnected)
+        #expect(!context.service.isScanning)
+        #expect(context.service.knownCameras == [target])
+    }
+
+    @Test("Saved records restore the original identity when a transport UUID alias is missing")
+    func savedRecordIdentity() throws {
         let suite = "NSGTests.cameras.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
         let target = camera()
-        try NikonCameraStore(defaults: defaults).save([target])
-        let service = BluetoothService(defaults: defaults)
-        service.reconnectionTarget = target
-        service.connectionState = .reconnecting
-        service.scanRequested = true
-        service.stopScan()
-        #expect(service.reconnectionTarget == nil)
-        #expect(service.connectionState == .disconnected)
-        #expect(!service.scanRequested)
-        #expect(service.knownCameras == [target])
+        let device = CameraDevice(id: UUID(), name: target.name)
+        let restored = CameraRepository(defaults: defaults).identity(
+            for: device, camera: target, knownCameras: [target]
+        )
+        #expect(restored == target.identity)
+        #expect(NikonIdentityStore(defaults: defaults).identity(for: device.id) == target.identity)
     }
 
     @Test("Preserve stable record IDs when updating peripheral UUIDs and last-used timestamps")

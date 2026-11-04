@@ -1,8 +1,8 @@
 import Foundation
 import ExternalAccessory
 
-// Public iOS system UI. Only accessories advertising the iAP-over-Bluetooth
-// identifier are eligible; a successful return alone does not verify Nikon GEO.
+/// Adapter for the system accessory picker; shows iAP-over-Bluetooth accessories but does not identify the
+/// camera selected.
 enum NikonAccessoryPicker {
     enum Outcome: Sendable {
         case completed
@@ -13,6 +13,8 @@ enum NikonAccessoryPicker {
         case simulatorUnavailable
     }
 
+    /// Called after initial BLE handshake and disconnection; returns the system outcome after picker dismissal.
+    /// The caller reconnects on success and may request camera confirmation for uncertain results.
     @MainActor
     static func present() async -> Outcome {
         #if targetEnvironment(simulator)

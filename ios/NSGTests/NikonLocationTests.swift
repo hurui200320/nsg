@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import CoreBluetooth
 import Testing
 @testable import NSG
 
@@ -86,32 +87,102 @@ struct NikonLocationTests {
         #expect(!LocationQuality.isUsable(location(latitude: 91), now: now))
     }
 
-    @Test("Do not start location updates or submit GPS before the connection handshake completes")
-    func noLocationBeforeReady() {
-        let service = BluetoothService()
-        service.startLocationSync()
-        #expect(!service.locationService.isRunning)
-        #expect(!service.sendLocation(location(), now: now))
-        #expect(service.pendingWrite == nil)
-        #expect(service.locationTransferState == .idle)
+    @Test("App GPS acquires before connection but cannot submit until the camera is ready")
+    func noLocationBeforeReady() throws {
+        let context = try CameraTestContext()
+        defer { context.cleanup() }
+        #expect(context.services.isLocationEnabled)
+        #expect(context.location.isRunning)
+        context.location.emit(context.fix())
+        #expect(!context.service.locationSync.send(context.fix()))
+        #expect(context.transport.writes.isEmpty)
     }
 
-    @Test("Connection cleanup cancels the location write timer and clears the pending sample")
-    func cleanupLocationTransfer() {
-        let service = BluetoothService()
-        let task = Task<Void, Never> {}
-        service.geoWriteTask = task
-        service.geoWriteID = UUID()
-        service.pendingGeoLocation = location()
-        service.pendingWrite = .geo
-        service.locationTransferState = .sending
-        service.clearHandshake()
-        #expect(task.isCancelled)
-        #expect(service.geoWriteTask == nil)
-        #expect(service.geoWriteID == nil)
-        #expect(service.pendingGeoLocation == nil)
-        #expect(service.pendingWrite == nil)
-        #expect(!service.locationService.isRunning)
-        #expect(service.locationTransferState == .idle)
+    @Test("Automatic sends are throttled; manual sends bypass only the interval")
+    func sendThrottle() throws {
+        let context = try CameraTestContext()
+        defer { context.cleanup() }
+        let session = try context.connect()
+        context.finishHandshake(session)
+        #expect(context.location.isRunning)
+        context.location.emit(context.fix())
+        #expect(context.transport.writes.filter { $0.0 == .location }.count == 1)
+        context.transport.emit(.writeCompleted(session, .location, nil))
+        context.scheduler.advance(by: 9)
+        context.location.emit(context.fix())
+        #expect(context.transport.writes.filter { $0.0 == .location }.count == 1)
+        context.service.sendCurrentLocation()
+        #expect(context.transport.writes.filter { $0.0 == .location }.count == 2)
+        context.transport.emit(.writeCompleted(session, .location, nil))
+        context.scheduler.advance(by: 10)
+        context.location.emit(context.fix())
+        #expect(context.transport.writes.filter { $0.0 == .location }.count == 3)
+    }
+
+    @Test("Stopping and restarting GPS preserves an in-flight write until acknowledgement")
+    func stopDuringWrite() throws {
+        let context = try CameraTestContext()
+        defer { context.cleanup() }
+        let session = try context.connect()
+        context.finishHandshake(session)
+        context.services.setLocationEnabled(true)
+        context.location.emit(context.fix())
+        context.services.setLocationEnabled(false)
+        context.services.setLocationEnabled(true)
+        context.location.emit(context.fix())
+        #expect(context.transport.writes.filter { $0.0 == .location }.count == 1)
+        context.transport.emit(.writeCompleted(session, .location, nil))
+        #expect(context.service.locationTransferState == .sent)
+        context.scheduler.advance(by: 15)
+        #expect(context.transport.disconnections.isEmpty)
+    }
+
+    @Test("ATT 0x80 retains its error and disconnects for a new handshake")
+    func rejectedGeoRecovery() throws {
+        let target = CameraTestContext.camera(connectedAt: Date())
+        let context = try CameraTestContext(cameras: [target])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOn))
+        let device = CameraDevice(id: target.peripheralIdentifier, name: target.name)
+        context.transport.emit(.discovered(device, nil))
+        let session = try #require(context.transport.connections.last?.1)
+        context.transport.emit(.discovering(session))
+        context.transport.emit(.connected(session, CameraCapabilities(properties: [
+            .pairing: [.write, .indicate], .success: [.notify], .controllerName: [.write], .location: [.write]
+        ], maximumWriteLength: 512)))
+        context.transport.emit(.subscriptionChanged(session, .pairing, true, nil))
+        context.transport.emit(.subscriptionChanged(session, .success, true, nil))
+        context.finishHandshake(session)
+        context.services.setLocationEnabled(true)
+        context.location.emit(context.fix())
+        let error = CameraFailure(error: NSError(domain: CBATTErrorDomain, code: 0x80))
+        context.transport.emit(.writeCompleted(session, .location, error))
+        #expect(context.transport.disconnections == [session])
+        #expect(context.location.isRunning)
+        context.transport.emit(.disconnected(session, nil))
+        #expect(context.service.connectionState == .waitingToReconnect)
+        #expect(context.service.lastFailure?.domain == CBATTErrorDomain)
+        #expect(context.service.lastFailure?.code == 0x80)
+        context.scheduler.advance(by: 5)
+        #expect(context.transport.scans.count == 2)
+    }
+
+    @Test("GEO timeout closes the connection; stale acknowledgements are ignored")
+    func timedOutWrite() throws {
+        let context = try CameraTestContext()
+        defer { context.cleanup() }
+        let session = try context.connect()
+        context.finishHandshake(session)
+        context.services.setLocationEnabled(true)
+        context.location.emit(context.fix())
+        context.scheduler.advance(by: 15)
+        #expect(context.transport.disconnections == [session])
+        guard case .failed = context.service.locationTransferState else {
+            Issue.record("Expected GPS timeout"); return
+        }
+        context.transport.emit(.disconnected(session, nil))
+        context.transport.emit(.writeCompleted(session, .location, nil))
+        #expect(context.service.lastLocationSentAt == nil)
+        #expect(context.location.isRunning)
     }
 }

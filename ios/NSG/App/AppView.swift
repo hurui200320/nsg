@@ -13,18 +13,22 @@ struct AppView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
-    @State private var bluetoothService = BluetoothService()
+    @State private var services = AppServiceController()
     @State private var isLaunched = false
-    @State private var launchRequested = false
+    @State private var isSettingsPresented = false
+    private var bluetoothService: NikonCameraService { services.cameraService }
 
     var body: some View {
         NavigationStack {
             Group {
                 if isLaunched {
-                    MainView(bluetoothService: bluetoothService)
+                    MainView(
+                        bluetoothService: bluetoothService,
+                        isBluetoothEnabled: services.isBluetoothEnabled
+                    )
                 } else {
                     VStack() {
-                        if launchRequested {
+                        if services.isBluetoothEnabled {
                             if bluetoothService.bluetoothState == .unknown ||
                                 bluetoothService.bluetoothState == .resetting {
                                 ProgressView()
@@ -49,42 +53,67 @@ struct AppView: View {
             .scrollEdgeEffectStyle(.soft, for: .top)
             .navigationTitle("Nikon Smart GPS")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $isSettingsPresented) {
+                SettingsView(services: services)
+            }
             .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button("Settings", systemImage: "gearshape") {
+                        isSettingsPresented = true
+                    }
+                    .labelStyle(.iconOnly)
+                    .accessibilityIdentifier("settingsButton")
+                }
+
+                ToolbarSpacer(placement: .bottomBar)
+
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        if launchRequested || isLaunched {
-                            launchRequested = false
-                            isLaunched = false
-                            bluetoothService.stopLocationSync()
-                            bluetoothService.disconnect()
+                        if services.isBluetoothEnabled {
+                            isLaunched = true
+                            services.setBluetoothEnabled(false)
                         } else {
-                            launchRequested = true
-                            bluetoothService.prepare()
+                            services.setBluetoothEnabled(true)
                             openCamerasIfReady()
                         }
                     } label: {
-                        Label(launchRequested || isLaunched ? "Stop Bluetooth" : "Start Bluetooth", systemImage: "power")
+                        Path { path in
+                            path.move(to: CGPoint(x: 6, y: 0))
+                            path.addLine(to: CGPoint(x: 6, y: 24))
+                            path.addLine(to: CGPoint(x: 14, y: 17))
+                            path.addLine(to: CGPoint(x: 0, y: 5))
+                            path.move(to: CGPoint(x: 6, y: 0))
+                            path.addLine(to: CGPoint(x: 14, y: 7))
+                            path.addLine(to: CGPoint(x: 0, y: 19))
+                        }
+                        .stroke(style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .frame(width: 14, height: 24)
                     }
-                    .tint(launchRequested || isLaunched ? .blue : .primary)
+                    .accessibilityLabel(services.isBluetoothEnabled ? "Stop Bluetooth" : "Start Bluetooth")
+                    .tint(services.isBluetoothEnabled ? .blue : .primary)
                     .labelStyle(.iconOnly)
                     .disabled(bluetoothService.isPairingPickerPresented)
                 }
-                
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        // TODO: Add a setting button to adjust sending frequncey, etc.
+                        services.setLocationEnabled(!services.isLocationEnabled)
                     } label: {
-                        Label("Setting", systemImage: "gearshape")
+                        Label(services.isLocationEnabled ? "Stop GPS" : "Start GPS", systemImage: "location")
                     }
                     .labelStyle(.iconOnly)
-                    .disabled(true)
+                    .tint(services.isLocationEnabled ? .blue : .primary)
                 }
             }
+        }
+        .task {
+            services.startEnabledServices()
         }
         .onChange(of: bluetoothService.bluetoothState) { _, _ in
             openCamerasIfReady()
         }
         .onChange(of: scenePhase) { _, phase in
+            bluetoothService.setForeground(phase == .active)
             if phase == .active, isLaunched {
                 bluetoothService.resumeAutomaticReconnection()
             }
@@ -97,8 +126,7 @@ struct AppView: View {
     }
 
     private func openCamerasIfReady() {
-        guard launchRequested, bluetoothService.bluetoothState == .poweredOn else { return }
-        launchRequested = false
+        guard services.isBluetoothEnabled, bluetoothService.bluetoothState == .poweredOn else { return }
         isLaunched = true
     }
 

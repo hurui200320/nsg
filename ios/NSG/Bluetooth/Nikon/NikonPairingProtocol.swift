@@ -3,6 +3,8 @@ import CommonCrypto
 
 // Protocol reference: https://github.com/hurui200320/nsg/blob/master/doc/nikon-z-gps.md
 // Timestamp word order follows the working Android NikonPairingEngine implementation.
+/// 17-byte PAIR message with little-endian fields; Stage 4 uses the final eight bytes for the camera serial
+/// number.
 struct NikonPairingMessage: Equatable {
     let stage: UInt8
     let timestamp: UInt64
@@ -59,25 +61,29 @@ enum NikonPairingProtocol {
         (0xCD32687F, 0xA9E28A30), (0x2A8FE834, 0xDEC7EBF4)
     ]
 
+    /// Starts each handshake with saved device/nonce values and a fresh random timestamp, which is not
+    /// wall-clock time.
     static func makeStage1(device: UInt32, nonce: UInt32) -> NikonPairingMessage {
         NikonPairingMessage(stage: 1, timestamp: UInt64.random(in: .min ... .max),
                             device: device, nonce: nonce)
     }
 
+    /// Validates Stage 2 and builds Stage 3 using the Stage 1 actually sent in this attempt; throws if
+    /// validation fails.
     static func response(to challenge: NikonPairingMessage,
-                         stage1: NikonPairingMessage) throws -> (message: NikonPairingMessage, salt: Int) {
+                         stage1: NikonPairingMessage) throws -> NikonPairingMessage {
         guard stage1.stage == 1, challenge.stage == 2 else {
             throw NikonPairingError.unexpectedStage
         }
         let camera = timestampWords(challenge.timestamp)
         let controller = timestampWords(stage1.timestamp)
-        for (index, salt) in salts.enumerated() {
+        for salt in salts {
             let expected = try hash([salt.0, salt.1] + camera + controller)
             guard expected.0 == challenge.device.byteSwapped,
                   expected.1 == challenge.nonce.byteSwapped else { continue }
             let result = try hash([salt.0, salt.1] + controller + camera)
-            return (NikonPairingMessage(stage: 3, timestamp: stage1.timestamp,
-                                       device: result.0.byteSwapped, nonce: result.1.byteSwapped), index)
+            return NikonPairingMessage(stage: 3, timestamp: stage1.timestamp,
+                                       device: result.0.byteSwapped, nonce: result.1.byteSwapped)
         }
         throw NikonPairingError.challengeRejected
     }
@@ -116,11 +122,5 @@ enum NikonPairingProtocol {
 
     private static func bigEndianBytes(_ word: UInt32) -> [UInt8] {
         stride(from: 24, through: 0, by: -8).map { UInt8(truncatingIfNeeded: word >> $0) }
-    }
-}
-
-extension Data {
-    var hexString: String {
-        map { String(format: "%02X", $0) }.joined(separator: " ")
     }
 }

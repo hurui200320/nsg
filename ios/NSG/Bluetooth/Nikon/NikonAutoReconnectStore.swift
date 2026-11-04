@@ -10,6 +10,8 @@ struct NikonAutoReconnectStore {
     private let cameraKey = "NSG.autoReconnect.cameraID"
     private let enabledKey = "NSG.autoReconnect.enabled"
 
+    /// Restores preferences at service initialization; without the new preference key, migrates only the most
+    /// recently connected camera.
     func load(knownCameras: [NikonCameraRecord]) -> NikonAutoReconnectPreference {
         if defaults.object(forKey: enabledKey) != nil {
             return NikonAutoReconnectPreference(

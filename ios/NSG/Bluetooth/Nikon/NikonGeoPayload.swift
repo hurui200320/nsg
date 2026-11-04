@@ -10,6 +10,9 @@ enum NikonGeoError: LocalizedError {
 }
 
 enum NikonGeoPayload {
+    /// Encodes a quality-checked fix as a 41-byte GEO payload; altitude is in meters and date is the sample
+    /// timestamp encoded in UTC.
+    /// Checks encoding ranges only; callers must validate fix freshness and accuracy separately.
     static func make(latitude: Double, longitude: Double, altitude: Int, date: Date) throws -> Data {
         guard latitude.isFinite, longitude.isFinite,
               (-90...90).contains(latitude), (-180...180).contains(longitude),

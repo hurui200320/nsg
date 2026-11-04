@@ -5,129 +5,108 @@ import Testing
 
 @MainActor
 struct NikonAutoReconnectTests {
-    private func camera(connectedAt: Date?) -> NikonCameraRecord {
-        let id = UUID()
-        return NikonCameraRecord(
-            id: id, peripheralIdentifier: id, name: "Z5",
-            controllerDevice: 1, controllerNonce: 42,
-            pairingCompletedAt: Date(), lastConnectedAt: connectedAt
-        )
-    }
-
-    @Test("On upgrade, select only the most recently connected camera with a successful connection")
+    @Test("Upgrade selects the most recently connected camera without preparing Bluetooth")
     func migration() throws {
-        let suite = "NSGTests.autoReconnect.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let older = camera(connectedAt: Date(timeIntervalSince1970: 100))
-        let latest = camera(connectedAt: Date(timeIntervalSince1970: 200))
-        let pairedOnly = camera(connectedAt: nil)
-        try NikonCameraStore(defaults: defaults).save([older, pairedOnly, latest])
-        let service = BluetoothService(defaults: defaults)
-        #expect(service.automaticReconnectCameraID == latest.id)
-        #expect(service.isAutomaticReconnectEnabled)
-        // Initialization does not request Bluetooth permission; AppView's start button still calls prepare.
-        #expect(service.central == nil)
+        let older = CameraTestContext.camera(connectedAt: Date(timeIntervalSince1970: 100))
+        let latest = CameraTestContext.camera(connectedAt: Date(timeIntervalSince1970: 200))
+        let context = try CameraTestContext(cameras: [older, CameraTestContext.camera(), latest])
+        defer { context.cleanup() }
+        #expect(context.service.automaticReconnectCameraID == latest.id)
+        #expect(context.service.isAutomaticReconnectEnabled)
+        #expect(context.transport.prepareCount == 0)
     }
 
-    @Test("Manual disconnection stays disabled across service recreation; selecting a camera restores reconnection")
+    @Test("Manual cancellation survives recreation and selecting a camera restores intent")
     func manualCancellationPersists() throws {
-        let suite = "NSGTests.autoReconnect.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let target = camera(connectedAt: Date())
-        try NikonCameraStore(defaults: defaults).save([target])
-        let service = BluetoothService(defaults: defaults)
-        service.bluetoothState = .poweredOn
-        #expect(service.shouldAutomaticallyReconnect)
-        service.disconnect()
-        #expect(!service.isAutomaticReconnectEnabled)
-        #expect(!service.shouldAutomaticallyReconnect)
-        let restored = BluetoothService(defaults: defaults)
-        restored.bluetoothState = .poweredOn
-        #expect(restored.automaticReconnectCameraID == target.id)
-        #expect(!restored.shouldAutomaticallyReconnect)
-        restored.enableAutomaticReconnection(for: target.id)
-        #expect(restored.shouldAutomaticallyReconnect)
-        let enabledAgain = BluetoothService(defaults: defaults)
-        #expect(enabledAgain.isAutomaticReconnectEnabled)
-        enabledAgain.disableAutomaticReconnection()
+        let target = CameraTestContext.camera(connectedAt: Date())
+        let context = try CameraTestContext(cameras: [target])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOn))
+        #expect(context.transport.scans.count == 1)
+        context.service.disconnect()
+        #expect(!NikonAutoReconnectStore(defaults: context.defaults).load(knownCameras: [target]).isEnabled)
+        context.service.connectKnownCamera(target)
+        #expect(context.service.isAutomaticReconnectEnabled)
+        #expect(context.transport.scans.count == 2)
     }
 
-    @Test("Unexpected failures preserve reconnection intent; cancellation clears the backoff task")
-    func failureAndCancellation() async throws {
-        let suite = "NSGTests.autoReconnect.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let target = camera(connectedAt: Date())
-        try NikonCameraStore(defaults: defaults).save([target])
-        let service = BluetoothService(defaults: defaults)
-        service.bluetoothState = .poweredOn
-        service.fail("Simulated unexpected disconnection")
-        let task = try #require(service.automaticReconnectTask)
-        #expect(service.connectionState == .waitingToReconnect)
-        #expect(service.isAutomaticReconnectEnabled)
-        #expect(service.automaticReconnectAttemptCount == 1)
-        service.disconnect()
-        await Task.yield()
-        #expect(task.isCancelled)
-        #expect(service.automaticReconnectTask == nil)
-        #expect(service.automaticReconnectTaskID == nil)
-        #expect(service.reconnectionTarget == nil)
-        #expect(service.connectionState == .disconnected)
-        #expect(service.central == nil)
-        #expect(!service.isAutomaticReconnectEnabled)
+    @Test("Timeout preserves its cause during backoff and cancellation prevents later attempts")
+    func failureAndCancellation() throws {
+        let context = try CameraTestContext(cameras: [CameraTestContext.camera(connectedAt: Date())])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOn))
+        context.scheduler.advance(by: 30)
+        #expect(context.service.connectionState == .waitingToReconnect)
+        #expect(context.service.lastFailure?.message.contains("rediscovery timed out") == true)
+        context.scheduler.advance(by: 4)
+        #expect(context.transport.scans.count == 1)
+        context.service.disconnect()
+        context.scheduler.advance(by: 120)
+        #expect(context.transport.scans.count == 1)
+        #expect(context.service.connectionState == .disconnected)
     }
 
-    @Test("System disconnection pauses retries without losing intent; do not start parallel reconnections while busy")
+    @Test("Bluetooth recovery resumes intent without parallel attempts")
     func eligibility() throws {
-        let suite = "NSGTests.autoReconnect.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let target = camera(connectedAt: Date())
-        try NikonCameraStore(defaults: defaults).save([target])
-        let service = BluetoothService(defaults: defaults)
-        service.bluetoothState = .poweredOff
-        #expect(!service.shouldAutomaticallyReconnect)
-        #expect(service.isAutomaticReconnectEnabled)
-        service.bluetoothState = .poweredOn
-        #expect(service.shouldAutomaticallyReconnect)
-        service.connectionState = .handshaking
-        #expect(!service.shouldAutomaticallyReconnect)
-        service.connectionState = .showingPairingPicker
-        #expect(!service.shouldAutomaticallyReconnect)
-        service.connectionState = .reconnecting
-        #expect(!service.shouldAutomaticallyReconnect)
-        service.connectionState = .failed("Temporarily unavailable")
-        #expect(service.shouldAutomaticallyReconnect)
+        let context = try CameraTestContext(cameras: [CameraTestContext.camera(connectedAt: Date())])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOff))
+        #expect(context.transport.scans.isEmpty)
+        context.transport.emit(.stateChanged(.poweredOn))
+        context.service.resumeAutomaticReconnection()
+        #expect(context.transport.scans.count == 1)
+        context.transport.emit(.stateChanged(.resetting))
+        context.transport.emit(.stateChanged(.poweredOn))
+        #expect(context.transport.scans.count == 1)
     }
 
-    @Test("Stopping reconnection scanning counts as explicit cancellation; removing a camera does not fall back to other devices")
+    @Test("Stopping target scanning or forgetting a camera cancels retries")
     func stopAndForget() throws {
-        let suite = "NSGTests.autoReconnect.\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        let target = camera(connectedAt: Date())
-        let other = camera(connectedAt: Date(timeIntervalSince1970: 1))
-        try NikonCameraStore(defaults: defaults).save([other, target])
-        let service = BluetoothService(defaults: defaults)
-        service.reconnectionTarget = target
-        service.connectionState = .reconnecting
-        service.stopScan()
-        #expect(!service.isAutomaticReconnectEnabled)
-        service.enableAutomaticReconnection(for: target.id)
-        service.forgetCamera(target)
-        let restored = BluetoothService(defaults: defaults)
-        restored.bluetoothState = .poweredOn
-        #expect(restored.knownCameras == [other])
-        #expect(!restored.shouldAutomaticallyReconnect)
+        let target = CameraTestContext.camera(connectedAt: Date())
+        let other = CameraTestContext.camera(connectedAt: Date(timeIntervalSince1970: 1), device: 257)
+        let context = try CameraTestContext(cameras: [other, target])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOn))
+        context.service.stopScan()
+        #expect(!context.service.isAutomaticReconnectEnabled)
+        context.service.connectKnownCamera(target)
+        context.service.forgetCamera(target)
+        context.scheduler.advance(by: 120)
+        #expect(context.service.knownCameras == [other])
+        #expect(!context.service.shouldAutomaticallyReconnect)
     }
 
-    @Test("Backoff increases and is capped at one minute")
+    @Test("Retry uses five seconds initially, grows to one minute, and handles integer bounds")
     func retryDelays() {
-        #expect((1...6).map { BluetoothService.automaticReconnectDelay(attempt: $0) }
-            == [5, 10, 20, 40, 60, 60])
-        #expect(BluetoothService.automaticReconnectDelay(attempt: Int.max) == 60)
-        #expect(BluetoothService.automaticReconnectDelay(attempt: 0) == 5)
+        #expect((1...6).map { ReconnectPolicy.delay(attempt: $0) } == [5, 10, 20, 40, 60, 60])
+        #expect(ReconnectPolicy.delay(attempt: Int.max) == 60)
+        #expect(ReconnectPolicy.delay(attempt: Int.min) == 5)
+    }
+
+    @Test("An advertisement without a service UUID reconnects using its verified identity")
+    func rediscoveryWithoutServiceUUID() throws {
+        let target = CameraTestContext.camera(connectedAt: Date())
+        let context = try CameraTestContext(cameras: [target])
+        defer { context.cleanup() }
+        context.transport.emit(.stateChanged(.poweredOn))
+        let device = CameraDevice(id: UUID(), name: target.name)
+        context.transport.emit(.discovered(device, Data([0x99, 0x03, 1, 0x33, 0x22, 0x11, 0])))
+        #expect(context.transport.connections.last?.0 == device)
+        #expect(context.service.connectionState == .connecting)
+    }
+
+    @Test("Late callbacks from a cancelled connection cannot alter the new connection")
+    func staleCallbacks() throws {
+        let context = try CameraTestContext()
+        defer { context.cleanup() }
+        let old = try context.connect()
+        context.service.disconnect()
+        context.transport.emit(.disconnected(old, nil))
+        let current = try context.connect()
+        context.transport.emit(.disconnected(old, CameraFailure("Old disconnect")))
+        context.transport.emit(.writeCompleted(old, .controllerName, nil))
+        #expect(context.service.connectionState == .handshaking)
+        context.finishHandshake(current)
+        #expect(context.service.connectionState == .ready)
     }
 }
