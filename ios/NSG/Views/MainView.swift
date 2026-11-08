@@ -15,8 +15,8 @@ struct MainView: View {
     var body: some View {
         List {
             myDeviceSection
-            otherDeviceSection
             locationSection
+            otherDeviceSection
         }
         .animation(
             reduceMotion ? nil : .smooth(duration: 0.3),
@@ -251,89 +251,18 @@ struct MainView: View {
     }
 
     private var locationSection: some View {
-        Section {
-            LabeledContent("Latitude") {
-                if let location = bluetoothService.locationService.latestLocation {
-                    Text(location.coordinate.latitude, format: .number.precision(.fractionLength(6)))
-                } else {
-                    Text("-")
-                }
-            }
-            LabeledContent("Longitude") {
-                if let location = bluetoothService.locationService.latestLocation {
-                    Text(location.coordinate.longitude, format: .number.precision(.fractionLength(6)))
-                } else {
-                    Text("-")
-                }
-            }
-            LabeledContent("Accuracy") {
-                if let location = bluetoothService.locationService.latestLocation,
-                   location.horizontalAccuracy >= 0 {
-                    Text("± \(location.horizontalAccuracy, format: .number.precision(.fractionLength(0))) m")
-                } else {
-                    Text("-")
-                }
-            }
-            LabeledContent("Altitude") {
-                if let location = bluetoothService.locationService.latestLocation,
-                   location.verticalAccuracy >= 0 {
-                    Text("\(location.altitude, format: .number.precision(.fractionLength(0))) m")
-                } else {
-                    Text("-")
-                }
-            }
-            LabeledContent("Last sent") {
-                if let sentAt = bluetoothService.lastLocationSentAt {
-                    Text(sentAt, style: .time)
-                } else {
-                    Text("-")
-                }
-            }
-
-            if bluetoothService.locationService.isRunning {
-                Button("Send current location now") {
-                    bluetoothService.sendCurrentLocation()
-                }
-                .disabled(
-                    !bluetoothService.canSendLocation ||
-                    !bluetoothService.locationService.hasFullAccuracy ||
-                    bluetoothService.locationService.latestLocation == nil ||
-                    bluetoothService.locationTransferState == .sending
-                )
-            }
-
-        } header: {
-            HStack {
-                Text("GPS location")
-                if bluetoothService.locationTransferState == .sending {
-                    ProgressView()
-                }
-            }
-        } footer: {
-            VStack(alignment: .leading) {
-                Text(bluetoothService.locationService.status.message)
-            }
-        }
-    }
-
-    private var locationTransferMessage: String {
-        if case .failed(let message) = bluetoothService.locationTransferState {
-            return "GPS was not sent: \(message)"
-        }
-        if !bluetoothService.canSendLocation {
-            return bluetoothService.connectionState == .ready
-                ? "GPS sharing is unavailable for this camera connection."
-                : "Connect your camera and finish pairing before sending your phone’s location."
-        }
-        switch bluetoothService.locationTransferState {
-        case .idle:
-            return "New precise fixes are sent at most once every 10 seconds. Fixes older than 30 seconds or with horizontal error over 20 m are not sent."
-        case .sending:
-            return "Sending your phone’s current GPS location…"
-        case .sent:
-            return "The camera acknowledged the GPS write. Check the camera and a new photo to confirm GPS recording."
-        case .failed(let message):
-            return "GPS was not sent: \(message)"
+        Section("GPS location") {
+            GPSLocationCard(
+                location: bluetoothService.locationService.latestLocation,
+                status: bluetoothService.locationService.status,
+                lastSentAt: bluetoothService.lastLocationSentAt,
+                transferState: bluetoothService.locationTransferState,
+                isLocationRunning: bluetoothService.locationService.isRunning,
+                canSendLocation: bluetoothService.canSendLocation &&
+                    bluetoothService.locationService.hasFullAccuracy &&
+                    bluetoothService.locationService.latestLocation != nil,
+                sendLocation: { bluetoothService.sendCurrentLocation() }
+            )
         }
     }
 }
