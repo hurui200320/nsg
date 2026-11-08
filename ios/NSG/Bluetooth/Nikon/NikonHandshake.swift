@@ -27,7 +27,7 @@ struct NikonHandshake {
 
     /// Compatibility payload for the ID characteristic; retains the validated ASCII name padded to 32 bytes.
     static var controllerNameData: Data {
-        var data = Data("NSG-iOS-Probe".utf8)
+        var data = Data("NSG-iOS".utf8)
         data.append(Data(repeating: 0, count: 32 - data.count))
         return data
     }

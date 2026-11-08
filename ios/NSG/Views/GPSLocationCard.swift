@@ -43,7 +43,7 @@ struct GPSLocationCard: View {
                     Button {
                         sendLocation()
                     } label: {
-                        Label("Send now", systemImage: "paperplane")
+                        Text("Send now")
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .buttonStyle(.borderedProminent)

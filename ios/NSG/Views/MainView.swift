@@ -75,7 +75,11 @@ struct MainView: View {
 
         } header: {
             Text("My camera")
+        } footer: {
+            if bluetoothService.knownCameras.isEmpty {
+                Text("Your cameras will be listed here.")
             }
+        }
 //        footer: {
 //            switch bluetoothService.connectionState {
 //            case .failed, .reconnecting, .waitingToReconnect, .connecting, .discovering, .handshaking,
