@@ -10,6 +10,7 @@ struct MainView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let bluetoothService: NikonCameraService
     let isBluetoothEnabled: Bool
+    let showsMapPreview: Bool
     @State private var selectedCameraID: UUID?
 
     var body: some View {
@@ -261,6 +262,7 @@ struct MainView: View {
                 canSendLocation: bluetoothService.canSendLocation &&
                     bluetoothService.locationService.hasFullAccuracy &&
                     bluetoothService.locationService.latestLocation != nil,
+                showsMapPreview: showsMapPreview,
                 sendLocation: { bluetoothService.sendCurrentLocation() }
             )
         }
@@ -269,6 +271,6 @@ struct MainView: View {
 
 #if DEBUG
 #Preview {
-    MainView(bluetoothService: NikonCameraService(), isBluetoothEnabled: true)
+    MainView(bluetoothService: NikonCameraService(), isBluetoothEnabled: true, showsMapPreview: true)
 }
 #endif

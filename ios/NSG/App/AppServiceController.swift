@@ -26,6 +26,7 @@ final class AppServiceController {
     private(set) var isBluetoothEnabled: Bool
     private(set) var isLocationEnabled: Bool
     private(set) var isNearbyScanningEnabled: Bool
+    private(set) var isMapPreviewEnabled: Bool
     private(set) var locationSendInterval: LocationSendInterval
     private(set) var locationAccuracy: LocationAccuracy
     let cameraService: NikonCameraService
@@ -33,6 +34,7 @@ final class AppServiceController {
 
     private enum SettingsKey {
         static let nearbyScanning = "settings.nearbyScanning"
+        static let mapPreview = "settings.mapPreview"
         static let sendInterval = "settings.locationSendInterval"
         static let accuracy = "settings.locationAccuracy"
     }
@@ -49,6 +51,7 @@ final class AppServiceController {
         self.isLocationEnabled = isLocationEnabled
         self.defaults = defaults
         isNearbyScanningEnabled = defaults.object(forKey: SettingsKey.nearbyScanning) as? Bool ?? true
+        isMapPreviewEnabled = defaults.object(forKey: SettingsKey.mapPreview) as? Bool ?? true
         locationSendInterval = LocationSendInterval(rawValue: defaults.double(forKey: SettingsKey.sendInterval)) ?? .tenSeconds
         locationAccuracy = LocationAccuracy(rawValue: defaults.double(forKey: SettingsKey.accuracy)) ?? .twentyMeters
         self.cameraService.setNearbyScanningEnabled(isNearbyScanningEnabled)
@@ -89,6 +92,11 @@ final class AppServiceController {
         isNearbyScanningEnabled = enabled
         defaults.set(enabled, forKey: SettingsKey.nearbyScanning)
         cameraService.setNearbyScanningEnabled(enabled)
+    }
+
+    func setMapPreviewEnabled(_ enabled: Bool) {
+        isMapPreviewEnabled = enabled
+        defaults.set(enabled, forKey: SettingsKey.mapPreview)
     }
 
     func setLocationSendInterval(_ interval: LocationSendInterval) {

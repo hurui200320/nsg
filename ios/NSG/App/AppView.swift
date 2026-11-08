@@ -24,7 +24,8 @@ struct AppView: View {
                 if isLaunched {
                     MainView(
                         bluetoothService: bluetoothService,
-                        isBluetoothEnabled: services.isBluetoothEnabled
+                        isBluetoothEnabled: services.isBluetoothEnabled,
+                        showsMapPreview: services.isMapPreviewEnabled
                     )
                 } else {
                     VStack() {
@@ -53,7 +54,7 @@ struct AppView: View {
             .scrollEdgeEffectStyle(.soft, for: .top)
             .navigationTitle("Nikon Smart GPS")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $isSettingsPresented) {
+            .navigationDestination(isPresented: $isSettingsPresented) {
                 SettingsView(services: services)
             }
             .toolbar {

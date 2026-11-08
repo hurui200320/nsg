@@ -13,11 +13,14 @@ struct GPSLocationCard: View {
     let transferState: LocationTransferState
     let isLocationRunning: Bool
     let canSendLocation: Bool
+    let showsMapPreview: Bool
     let sendLocation: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            mapPreview
+            if showsMapPreview {
+                mapPreview
+            }
 
             VStack(alignment: .leading, spacing: 16) {
                 Label(statusTitle, systemImage: statusSymbol)
@@ -241,6 +244,7 @@ struct GPSLocationCard: View {
                     transferState: .sent,
                     isLocationRunning: true,
                     canSendLocation: true,
+                    showsMapPreview: true,
                     sendLocation: {}
                 )
             }
@@ -260,6 +264,7 @@ struct GPSLocationCard: View {
                 transferState: .idle,
                 isLocationRunning: true,
                 canSendLocation: false,
+                showsMapPreview: true,
                 sendLocation: {}
             )
         }
