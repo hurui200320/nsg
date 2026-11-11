@@ -1,11 +1,12 @@
 import Foundation
 import Testing
+
 @testable import NSG
 
 @MainActor
 struct CameraWriteQueueTests {
     @Test("Stage indications may queue later writes before earlier acknowledgements")
-    func serializedWrites() {
+    func writesWaitForMatchingAcknowledgement() {
         var queue = CameraWriteQueue()
         queue.enqueue(Data([1]), to: .pairing)
         let stage1 = queue.next()
@@ -29,7 +30,7 @@ struct CameraWriteQueueTests {
     }
 
     @Test("Disconnect discards queued writes and cannot acknowledge the discarded request")
-    func cancellation() {
+    func removingAllDiscardsPendingAndQueuedWrites() {
         var queue = CameraWriteQueue()
         queue.enqueue(Data([1]), to: .pairing)
         _ = queue.next()

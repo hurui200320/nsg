@@ -83,13 +83,13 @@ final class NikonCameraService {
 
     /// Communication interface: Bluetooth in production, replaceable with a fake transport in tests.
     @ObservationIgnored private let transport: any CameraTransport
-    @ObservationIgnored private let repository: CameraRepository
+    @ObservationIgnored private let repository: NikonCameraRepository
     @ObservationIgnored private let scheduler: any CameraScheduling
     @ObservationIgnored private let presentPicker: @MainActor () async -> NikonAccessoryPicker.Outcome
     @ObservationIgnored private let makeStage1: @MainActor (NikonControllerIdentity) -> NikonPairingMessage
     /// Created by beginConnection for each attempt; used to discard callbacks belonging to older sessions.
     @ObservationIgnored private var sessionID: UUID?
-    @ObservationIgnored private var capabilities: CameraCapabilities?
+    @ObservationIgnored private var capabilities: NikonCameraCapabilities?
     @ObservationIgnored private var handshake = NikonHandshake()
     @ObservationIgnored private var currentIdentity: NikonControllerIdentity?
     @ObservationIgnored private var connectingCameraID: UUID?
@@ -116,7 +116,7 @@ final class NikonCameraService {
              NikonPairingProtocol.makeStage1(device: $0.device, nonce: $0.nonce)
          }) {
         self.transport = transport ?? BluetoothTransport()
-        self.repository = CameraRepository(defaults: defaults)
+        self.repository = NikonCameraRepository(defaults: defaults)
         self.scheduler = scheduler ?? SystemCameraScheduler()
         self.presentPicker = presentPicker
         self.makeStage1 = makeStage1

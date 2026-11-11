@@ -1,13 +1,15 @@
 import CoreBluetooth
 import Testing
+
 @testable import NSG
 
 @MainActor
 struct AppServiceControllerTests {
     @Test("Enabling GPS acquires without Bluetooth; only a completed handshake permits sending")
-    func independentLocationAcquisition() throws {
+    func enablingLocationAcquiresBeforeCameraIsReady() throws {
         let context = try CameraTestContext(bluetoothEnabled: false, locationEnabled: false)
         defer { context.cleanup() }
+
         context.services.setLocationEnabled(true)
         #expect(context.location.isRunning)
         #expect(!context.services.isBluetoothEnabled)
@@ -18,16 +20,17 @@ struct AppServiceControllerTests {
 
         context.services.setBluetoothEnabled(true)
         let session = try context.connect()
-        #expect(context.transport.writes.filter { $0.0 == .location }.isEmpty)
+        #expect(context.transport.writes(to: .location).isEmpty)
         context.finishHandshake(session)
-        #expect(context.transport.writes.filter { $0.0 == .location }.count == 1)
+        #expect(context.transport.writes(to: .location).count == 1)
     }
 
     @Test("Bluetooth shutdown cancels discovery and retries; late events cannot resume them")
-    func bluetoothShutdownDuringDiscovery() throws {
-        let target = CameraTestContext.camera(connectedAt: .now)
+    func disablingBluetoothStopsDiscoveryAndReconnect() throws {
+        let target = CameraTestContext.camera(connectedAt: Date(timeIntervalSince1970: 200))
         let context = try CameraTestContext(cameras: [target])
         defer { context.cleanup() }
+
         context.transport.emit(.stateChanged(.poweredOn))
         #expect(context.service.isScanning)
         let scans = context.transport.scans.count
@@ -42,10 +45,6 @@ struct AppServiceControllerTests {
         context.transport.emit(.stateChanged(.poweredOff))
         context.transport.emit(.stateChanged(.poweredOn))
         context.service.setDiscoveryVisible(true)
-        context.service.startScan()
-        context.service.prepare()
-        context.service.connectKnownCamera(target)
-        context.service.resumeAutomaticReconnection()
         context.scheduler.advance(by: 120)
         #expect(!context.service.isScanning)
         #expect(context.transport.scans.count == scans)
@@ -58,9 +57,10 @@ struct AppServiceControllerTests {
     }
 
     @Test("Bluetooth shutdown disconnects the camera without stopping app GPS")
-    func bluetoothShutdownDuringConnection() throws {
+    func disablingBluetoothDisconnectsCameraAndKeepsLocationRunning() throws {
         let context = try CameraTestContext()
         defer { context.cleanup() }
+
         let session = try context.connect()
         context.finishHandshake(session)
         context.services.setBluetoothEnabled(false)
@@ -78,9 +78,10 @@ struct AppServiceControllerTests {
     }
 
     @Test("GPS shutdown blocks all sends and remains off across camera reconnection")
-    func locationShutdownSurvivesReconnection() throws {
+    func disabledLocationStaysOffAfterCameraReconnects() throws {
         let context = try CameraTestContext()
         defer { context.cleanup() }
+
         let first = try context.connect()
         context.finishHandshake(first)
         context.services.setLocationEnabled(false)
@@ -89,7 +90,7 @@ struct AppServiceControllerTests {
         #expect(!context.service.canSendLocation)
         #expect(!context.service.locationSync.send(context.fix()))
         context.service.sendCurrentLocation()
-        #expect(context.transport.writes.filter { $0.0 == .location }.isEmpty)
+        #expect(context.transport.writes(to: .location).isEmpty)
 
         context.service.disconnect()
         context.transport.emit(.disconnected(first, nil))
@@ -97,17 +98,18 @@ struct AppServiceControllerTests {
         context.finishHandshake(second)
         #expect(!context.services.isLocationEnabled)
         #expect(!context.location.isRunning)
-        #expect(context.transport.writes.filter { $0.0 == .location }.isEmpty)
+        #expect(context.transport.writes(to: .location).isEmpty)
 
         context.services.setLocationEnabled(true)
         context.location.emit(context.fix())
-        #expect(context.transport.writes.filter { $0.0 == .location }.count == 1)
+        #expect(context.transport.writes(to: .location).count == 1)
     }
 
     @Test("Camera disconnection preserves GPS intent and acquisition; reacquisition is unnecessary")
-    func cameraDisconnectionPreservesLocation() throws {
+    func cameraReconnectSendsFixAcquiredWhileDisconnected() throws {
         let context = try CameraTestContext()
         defer { context.cleanup() }
+
         let first = try context.connect()
         context.finishHandshake(first)
         context.transport.emit(.disconnected(first, nil))
@@ -115,16 +117,16 @@ struct AppServiceControllerTests {
         #expect(context.location.isRunning)
         #expect(!context.service.canSendLocation)
         context.location.emit(context.fix())
-        #expect(context.transport.writes.filter { $0.0 == .location }.isEmpty)
+        #expect(context.transport.writes(to: .location).isEmpty)
 
         let second = try context.connect()
         context.finishHandshake(second)
         #expect(context.location.isRunning)
-        #expect(context.transport.writes.filter { $0.0 == .location }.count == 1)
+        #expect(context.transport.writes(to: .location).count == 1)
     }
 
     @Test("Bluetooth cannot be disabled while the system pairing picker is open")
-    func pairingPickerRetainsBluetoothIntent() async throws {
+    func disablingBluetoothWaitsForPairingPicker() async throws {
         var finishPicker: (@MainActor () -> Void)?
         let context = try CameraTestContext(picker: {
             await withCheckedContinuation { continuation in
@@ -132,18 +134,38 @@ struct AppServiceControllerTests {
             }
         })
         defer { context.cleanup() }
+
         let session = try context.connect(firstPairing: true)
         context.finishHandshake(session)
         context.transport.emit(.disconnected(session, nil))
-        for _ in 0..<100 where finishPicker == nil { await Task.yield() }
+        try await waitUntil { finishPicker != nil }
         let finish = try #require(finishPicker)
         context.services.setBluetoothEnabled(false)
         #expect(context.services.isBluetoothEnabled)
         #expect(context.service.isPairingPickerPresented)
         finish()
-        for _ in 0..<100 where context.service.isPairingPickerPresented { await Task.yield() }
+        finishPicker = nil
+        try await waitUntil { !context.service.isPairingPickerPresented }
         #expect(!context.service.isPairingPickerPresented)
         context.services.setBluetoothEnabled(false)
         #expect(!context.services.isBluetoothEnabled)
+    }
+
+    @Test("Startup only starts services enabled by the app switches", arguments: [false, true], [false, true])
+    func startupRespectsServiceSwitches(bluetoothEnabled: Bool, locationEnabled: Bool) throws {
+        let context = try CameraTestContext(
+            bluetoothEnabled: bluetoothEnabled,
+            locationEnabled: locationEnabled,
+            startsLocation: false
+        )
+        defer { context.cleanup() }
+
+        #expect(context.transport.prepareCount == 0)
+        #expect(!context.location.isRunning)
+
+        context.services.startEnabledServices()
+
+        #expect(context.transport.prepareCount == (bluetoothEnabled ? 1 : 0))
+        #expect(context.location.isRunning == locationEnabled)
     }
 }

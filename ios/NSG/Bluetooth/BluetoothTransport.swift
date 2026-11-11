@@ -55,7 +55,7 @@ final class BluetoothTransport: NSObject, CameraTransport {
         guard let central, central.state == .poweredOn, let scanMode,
               activePeripheral?.state != .connecting, !central.isScanning else { return }
         central.scanForPeripherals(
-            withServices: CameraScanPolicy.services(for: scanMode, isForeground: isForeground),
+            withServices: NikonScanPolicy.services(for: scanMode, isForeground: isForeground),
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
         )
         onEvent?(.scanningChanged(central.isScanning))
@@ -166,7 +166,7 @@ extension BluetoothTransport: @preconcurrency CBCentralManagerDelegate {
         guard scanMode != nil, central.isScanning, central.state == .poweredOn else { return }
         let manufacturer = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data
         let services = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
-        guard CameraScanPolicy.isNikonAdvertisement(services: services, manufacturerData: manufacturer) else { return }
+        guard NikonScanPolicy.isNikonAdvertisement(services: services, manufacturerData: manufacturer) else { return }
         peripherals[peripheral.identifier] = peripheral
         let name = advertisementData[CBAdvertisementDataLocalNameKey] as? String ?? peripheral.name
         onEvent?(.discovered(CameraDevice(id: peripheral.identifier, name: name), manufacturer))
@@ -217,7 +217,7 @@ extension BluetoothTransport: @preconcurrency CBPeripheralDelegate {
         for characteristic in service.characteristics ?? [] {
             if let kind = NikonCharacteristic(uuid: characteristic.uuid) { characteristics[kind] = characteristic }
         }
-        onEvent?(.connected(sessionID, CameraCapabilities(
+        onEvent?(.connected(sessionID, NikonCameraCapabilities(
             properties: characteristics.mapValues(\.properties),
             maximumWriteLength: peripheral.maximumWriteValueLength(for: .withResponse)
         )))

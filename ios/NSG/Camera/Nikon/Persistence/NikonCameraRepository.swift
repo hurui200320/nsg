@@ -2,7 +2,7 @@ import Foundation
 
 /// Application access to cameras, identities, and reconnect preferences; preserves existing storage keys and
 /// formats.
-struct CameraRepository {
+struct NikonCameraRepository {
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults) { self.defaults = defaults }
