@@ -1,7 +1,6 @@
 import Foundation
 
-/// Camera identity and pairing data; held temporarily until system pairing succeeds or an uncertain result
-/// is confirmed by the user.
+/// Camera identity and pairing data; held temporarily while the system pairing picker is open.
 struct NikonCameraRecord: Codable, Equatable, Identifiable {
     /// Immutable record ID used for UI selection and automatic reconnect preferences.
     let id: UUID

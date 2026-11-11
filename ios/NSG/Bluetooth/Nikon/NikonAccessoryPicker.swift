@@ -14,7 +14,7 @@ enum NikonAccessoryPicker {
     }
 
     /// Called after initial BLE handshake and disconnection; returns the system outcome after picker dismissal.
-    /// The caller reconnects on success and may request camera confirmation for uncertain results.
+    /// The caller reconnects on success or not-found results and verifies the BLE handshake.
     @MainActor
     static func present() async -> Outcome {
         #if targetEnvironment(simulator)

@@ -18,7 +18,6 @@ final class NikonCameraService {
         case disconnecting
         case disconnectingForPairing
         case showingPairingPicker
-        case pairingNeedsConfirmation(String)
         case reconnecting
         case waitingToReconnect
         case failed(String)
@@ -59,7 +58,7 @@ final class NikonCameraService {
         if isPairingPickerPresented { return true }
         return switch connectionState {
         case .connecting, .discovering, .handshaking, .disconnecting, .disconnectingForPairing,
-             .showingPairingPicker, .pairingNeedsConfirmation, .reconnecting, .waitingToReconnect: true
+             .showingPairingPicker, .reconnecting, .waitingToReconnect: true
         default: false
         }
     }
@@ -96,7 +95,7 @@ final class NikonCameraService {
     @ObservationIgnored private var connectingCameraID: UUID?
     /// Whether this handshake must be followed by BLE disconnection and the system pairing picker.
     @ObservationIgnored private var firstPairingRequested = false
-    /// Temporary target until system pairing succeeds or the user confirms an uncertain result.
+    /// Temporary target retained while the system pairing picker is open.
     @ObservationIgnored private var pairingTarget: NikonCameraRecord?
     @ObservationIgnored private var reconnectionTarget: NikonCameraRecord?
     @ObservationIgnored private var operationTimer: CameraTimer?
@@ -282,14 +281,7 @@ final class NikonCameraService {
         return true
     }
 
-    /// Called when the user confirms an uncertain picker result on the target camera; saves it and reconnects.
-    func confirmPairingOnCamera() {
-        guard case .pairingNeedsConfirmation = connectionState,
-              !isPairingPickerPresented else { return }
-        finishPairingAndReconnect()
-    }
-
-    /// Saves an accepted pairing result and reconnects; shared by system success and manual confirmation.
+    /// Saves the pairing target and reconnects to verify it through the Nikon handshake.
     private func finishPairingAndReconnect() {
         guard var target = pairingTarget else {
             fail(CameraFailure("The pairing target was lost.", recovery: .userAction))
@@ -503,8 +495,8 @@ final class NikonCameraService {
         connectingCameraID = nil
     }
 
-    /// Called after initial-handshake BLE disconnection; system success reconnects immediately, while an
-    /// uncertain result waits for user confirmation.
+    /// Called after initial-handshake BLE disconnection; success and not-found results reconnect immediately.
+    /// A not-found result still requires the subsequent Nikon handshake before the connection becomes ready.
     private func showPairingPicker() {
         connectionState = .showingPairingPicker
         isPairingPickerPresented = true
@@ -517,10 +509,8 @@ final class NikonCameraService {
             guard self.connectionState == .showingPairingPicker else { return }
             self.firstPairingRequested = false
             switch outcome {
-            case .completed, .alreadyConnected:
+            case .completed, .alreadyConnected, .notFound:
                 self.finishPairingAndReconnect()
-            case .notFound(let detail):
-                self.connectionState = .pairingNeedsConfirmation(detail)
             case .cancelled:
                 self.pairingTarget = nil
                 self.connectionState = .disconnected

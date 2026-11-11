@@ -67,12 +67,6 @@ struct MainView: View {
                 }
             }
 
-            if case .pairingNeedsConfirmation = bluetoothService.connectionState {
-                Button("Camera shows pairing complete — reconnect") {
-                    bluetoothService.confirmPairingOnCamera()
-                }
-            }
-
         } header: {
             Text("My camera")
         } footer: {
@@ -83,7 +77,7 @@ struct MainView: View {
 //        footer: {
 //            switch bluetoothService.connectionState {
 //            case .failed, .reconnecting, .waitingToReconnect, .connecting, .discovering, .handshaking,
-//                 .disconnectingForPairing, .showingPairingPicker, .pairingNeedsConfirmation:
+//                 .disconnectingForPairing, .showingPairingPicker:
 //                Text(connectionStatus)
 //                    .accessibilityIdentifier("cameraConnectionStatus")
 //                if let failure = bluetoothService.lastFailure,
@@ -151,8 +145,7 @@ struct MainView: View {
         case .ready:
             return .connected
         case .connecting, .discovering, .handshaking, .disconnectingForPairing,
-             .showingPairingPicker, .pairingNeedsConfirmation,
-             .reconnecting, .waitingToReconnect:
+             .showingPairingPicker, .reconnecting, .waitingToReconnect:
             return .reconnecting
         case .disconnected, .disconnecting, .failed:
             return .disconnected
@@ -247,8 +240,6 @@ struct MainView: View {
         case .disconnecting: return "Disconnecting…"
         case .disconnectingForPairing: return "Preparing system pairing…"
         case .showingPairingPicker: return "Select your camera in the system window and confirm the codes on both devices."
-        case .pairingNeedsConfirmation:
-            return "Confirm that your camera shows pairing complete, then tap the reconnect button above. Otherwise cancel and try pairing again."
         case .reconnecting: return "Searching for your camera to reconnect…"
         case .waitingToReconnect: return "Connection lost. Waiting to retry your last camera…"
         case .failed(let message): return "Connection failed: \(message)"
