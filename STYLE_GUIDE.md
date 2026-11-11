@@ -26,6 +26,20 @@ This document describes the code style conventions for this repository. It is a 
 - Prefer explicit null handling over unguarded `!!` or unchecked casts.
 - Unit tests live in `android/app/src/test/` and use JUnit.
 
+## iOS app (`ios/`, Swift / SwiftUI)
+
+Follow the existing conventions in `ios/NSG/`:
+
+- Use 4-space indentation, keep imports at the top of each file, and separate methods with a blank line.
+- Use PascalCase for types and camelCase for properties, methods, and local variables. Name Swift files after their primary type.
+- Prefer `let` for values that do not change. Use optionals and explicit error handling instead of force unwrapping or forced casts.
+- Define SwiftUI views as types conforming to `View`, with their interface in `body`. Split larger views into focused subviews or computed properties.
+- Use `@State private var` for view-owned state and `@Environment` for environment values. Keep shared service state in `@Observable` types, following the existing app and camera services.
+- Use `@MainActor` for UI-facing services and state. Prefer `async` / `await`, structured concurrency, and asynchronous sequences over Combine; cancel tasks and release sessions when their work ends.
+- Keep UI, app coordination, Bluetooth transport, camera protocol logic, persistence, and location processing in their existing areas. Keep protocol encoding and validation independent of views and hardware access.
+- Unit tests live in `ios/NSGTests/` and use Swift Testing. Mirror the source responsibilities and use injected camera transports, location sources, schedulers, and isolated UserDefaults suites so unit tests can run on a simulator without camera hardware. See [the test guide](ios/NSGTests/README.md).
+- Use XCUIAutomation for UI tests when adding them, and follow the existing accessibility identifier conventions for interactive controls.
+
 ## ESP32 firmware (`esp32/`, C++ / Arduino)
 
 Follow the existing conventions in `esp32/src/`:

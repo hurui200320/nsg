@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		650ADD0430A47DD00005C7F6 /* README.zh-CN.md in Resources */ = {isa = PBXBuildFile; fileRef = 650ADD0330A47DD00005C7F6 /* README.zh-CN.md */; };
 		65CF25D730997A1E00FBF8ED /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 65CF25D630997A1E00FBF8ED /* README.md */; };
 /* End PBXBuildFile section */
 
@@ -22,6 +23,7 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* NSG.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NSG.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		650ADD0330A47DD00005C7F6 /* README.zh-CN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "README.zh-CN.md"; sourceTree = "<group>"; };
 		655105B83098F31100135F2B /* NSGTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NSGTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		65A01C4B3098FC2800796D42 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Base.xcconfig; path = Config/Base.xcconfig; sourceTree = "<group>"; };
 		65CF25D630997A1E00FBF8ED /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 				000000000000000000000010 /* NSG */,
 				655105B93098F31100135F2B /* NSGTests */,
 				65CF25D630997A1E00FBF8ED /* README.md */,
+				650ADD0330A47DD00005C7F6 /* README.zh-CN.md */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -173,6 +176,7 @@
 			isa = PBXResourcesBuildPhase;
 			files = (
 				65CF25D730997A1E00FBF8ED /* README.md in Resources */,
+				650ADD0430A47DD00005C7F6 /* README.zh-CN.md in Resources */,
 			);
 		};
 		655105B63098F31100135F2B /* Resources */ = {

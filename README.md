@@ -28,6 +28,15 @@ This Android section is maintained by [HowenXu](https://github.com/HowenXu).
 > - English: [**Usage Tutorial**](android/README.md#usage)
 > - 本 Android 部分由 [HowenXu](https://github.com/HowenXu) 维护。
 
+## iOS
+
+The iOS app provides GPS location from your iPhone to Nikon cameras over Bluetooth smart-device mode. It supports camera pairing, automatic reconnection to saved cameras, GPS sync with background location updates, a map preview, and configurable sending intervals and accuracy thresholds.
+
+The app is distributed as source code. Build, sign, and install it on your own iPhone using Xcode and your Personal Team. See the iOS documentation for setup, signing, permissions, and screenshots:
+
+- 中文版：[**使用教程**](ios/README.zh-CN.md)
+- English: [**README**](ios/README.md)
+
 ## Kotlin PoC (Linux only, require Bluez)
 
 Apparently Android's BLE and BT stack is not easy to use. Using it as a PoC defeat the purpose of clean code just focusing on the core features. So, as a backend developer, I decide to use whatever I'm comfortable: the good old JVM.

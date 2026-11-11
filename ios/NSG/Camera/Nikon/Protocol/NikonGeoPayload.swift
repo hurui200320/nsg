@@ -50,4 +50,3 @@ enum NikonGeoPayload {
                 UInt8(remainder % 100)]
     }
 }
-

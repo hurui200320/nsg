@@ -88,7 +88,7 @@ struct SettingsView: View {
 }
 
 struct TipsView: View {
-    // TODO: Add usefule tips for NSG
+    // TODO: Add useful tips for NSG
     // Displayed in Settings -> Other -> Tips
 
     @Environment(\.dismiss) private var dismiss

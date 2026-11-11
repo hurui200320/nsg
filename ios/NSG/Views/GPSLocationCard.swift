@@ -27,13 +27,13 @@ struct GPSLocationCard: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(statusColor)
                     .contentTransition(reduceMotion ? .identity : .opacity)
-                
+
                 Divider()
 
                 if let location {
                     locationDetails(location)
                         .transition(.opacity)
-                    
+
                     Divider()
                 }
 
