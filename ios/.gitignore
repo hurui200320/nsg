@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Xcode user-specific files
+xcuserdata/
+*.xcuserstate
+
+# Build products
+DerivedData/
+build/
+.build/
+*.xcarchive
+*.xcresult
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Local configuration
+/Config/Local.xcconfig
+/Local.xcconfig
+
+# Local signing credentials
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.pfx
+*.p8
+*.pem
+*.key
+*.cer
+*.certSigningRequest

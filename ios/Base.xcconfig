@@ -1,0 +1,2 @@
+// Compatibility entry point. Keep all shared settings in Config/Base.xcconfig.
+#include "Config/Base.xcconfig"

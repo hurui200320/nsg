@@ -1,1 +1,4 @@
 *.apk
+
+# macOS
+.DS_Store
