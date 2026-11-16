@@ -27,7 +27,7 @@ enum NikonAccessoryPicker {
             return .completed
         } catch {
             let value = error as NSError
-            let detail = "\(value.domain) code=\(value.code)：\(value.localizedDescription)"
+            let detail = "\(value.domain) code=\(value.code): \(value.localizedDescription)"
             guard value.domain == EABluetoothAccessoryPickerErrorDomain,
                   let code = EABluetoothAccessoryPickerError.Code(rawValue: value.code) else {
                 return .failed(detail)

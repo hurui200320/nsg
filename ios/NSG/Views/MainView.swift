@@ -74,20 +74,6 @@ struct MainView: View {
                 Text("Your cameras will be listed here.")
             }
         }
-//        footer: {
-//            switch bluetoothService.connectionState {
-//            case .failed, .reconnecting, .waitingToReconnect, .connecting, .discovering, .handshaking,
-//                 .disconnectingForPairing, .showingPairingPicker:
-//                Text(connectionStatus)
-//                    .accessibilityIdentifier("cameraConnectionStatus")
-//                if let failure = bluetoothService.lastFailure,
-//                   bluetoothService.connectionState == .waitingToReconnect || bluetoothService.connectionState == .reconnecting {
-//                    Text(failure.message)
-//                }
-//            default:
-//                EmptyView()
-//            }
-//        }
     }
 
     private var otherDeviceSection: some View {
@@ -173,7 +159,7 @@ struct MainView: View {
             .disabled(!canStartConnection)
 
             if status != .disconnected {
-                Button(status == .connected ? "disconnected" : "cancel") {
+                Button(status == .connected ? "Disconnect" : "Cancel") {
                     bluetoothService.disconnect()
                 }
                 .buttonStyle(.borderless)
@@ -224,12 +210,14 @@ struct MainView: View {
         }
     }
 
+    // Currently unused; retained for possible future discovery status UI.
     private var discoveryMessage: String {
         if let bluetoothMessage { return bluetoothMessage }
         if bluetoothService.connectionState == .connecting { return "Scanning pauses while connecting to your camera." }
         return bluetoothService.isScanning ? "Searching for cameras…" : "No other cameras found."
     }
 
+    // Currently unused; retained for possible future connection status UI.
     private var connectionStatus: String {
         if let bluetoothMessage { return bluetoothMessage }
         switch bluetoothService.connectionState {

@@ -108,11 +108,13 @@ Bluetooth and GPS are enabled by default. Their services start when the app's in
 
 ## Compatibility and tested devices
 
-Tested on the following devices (You are welcomed to raise a PR to add your devices in the chart):
+NSG requires **iOS 26.0 or later**. The table below lists configurations tested on physical devices.
 
-| iPhone | iOS version | Camera | Camera firmware |
-| --- | --- | --- | --- |
-| iPhone 18 Pro | 27.0 / 27.2 | Nikon Z5 | 1.43 |
+| iOS version | Camera model | Camera firmware |
+| --- | --- | --- |
+| 27.0～27.2 | Nikon Z5 | 1.43 |
+
+> If you have tested another configuration, please submit a pull request to add it to the table.
 
 ## Issues
 
